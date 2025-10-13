@@ -656,6 +656,7 @@
       animation: fadeIn 0.5s ease-out;
     }
   </style>
+ 
 </head>
 <body>
   <div class="container">
@@ -805,55 +806,111 @@
       const scheduleData = {};
       const daysInRussian = ["ПОНЕДЕЛЬНИК", "ВТОРНИК", "СРЕДА", "ЧЕТВЕРГ", "ПЯТНИЦА", "СУББОТА"];
       const dayOrder = { "ПОНЕДЕЛЬНИК": 1, "ВТОРНИК": 2, "СРЕДА": 3, "ЧЕТВЕРГ": 4, "ПЯТНИЦА": 5, "СУББОТА": 6 };
-      const dayBlocks = text.split(new RegExp(`(?=(${daysInRussian.join('|')}))`, 'g'));
+      const normalizeDay = (line) => {
+        const upper = line.replace(/[\p{Emoji_Presentation}\p{Extended_Pictographic}]/gu, '').replace(/[^\p{L}]/gu, ' ').toUpperCase().trim();
+        for (const day of daysInRussian) {
+          if (upper.includes(day)) return day;
+        }
+        return null;
+      };
       const lessonEmojiMap = {
-          '1️⃣': '1', '2️⃣': '2', '3️⃣': '3', '4️⃣': '4', '5️⃣': '5',
+        '1️⃣': '1', '2️⃣': '2', '3️⃣': '3', '4️⃣': '4', '5️⃣': '5',
           '6️⃣': '6', '7️⃣': '7', '8️⃣': '8', '9️⃣': '9'
       };
-      const lessonRegex = new RegExp(`(${Object.keys(lessonEmojiMap).join('|')})\\s*(.*)`);
-      for (const block of dayBlocks) {
-          if (block.trim() === "") continue;
-          const lines = block.trim().split('\n');
-          const day = lines[0].trim();
-          if (!daysInRussian.includes(day)) continue;
-          scheduleData[day] = {};
-          let currentLesson = null;
-          let lessonInfo = {};
-          for (let i = 1; i < lines.length; i++) {
-              const line = lines[i].trim();
-              if (line === "" || line.startsWith('═')) continue;
-              const lessonMatch = line.match(lessonRegex);
-              if (lessonMatch) {
-                  if (currentLesson) {
-                      scheduleData[day][currentLesson] = lessonInfo;
-                  }
-                  currentLesson = lessonEmojiMap[lessonMatch[1]];
-                  const subjectText = lessonMatch[2].replace('/', '').trim();
-                  lessonInfo = { subject: subjectText ? [subjectText] : [] };
-              } else if (currentLesson) {
-                  if (line.startsWith("Преподаватель:")) {
-                      lessonInfo.teacher = line.replace("Преподаватель:", "").trim();
-                  } else if (line.startsWith("Кабинет:")) {
-                      lessonInfo.cabinet = line.replace("Кабинет:", "").trim();
-                  } else if (lessonInfo.subject && line) {
-                      lessonInfo.subject.push(line);
-                  }
-              }
+      const emojiPattern = Object.keys(lessonEmojiMap).map(s => s.replace(/([.*+?^${}()|[\]\\])/g, '\\$1')).join('|');
+      const emojiLessonRegex = new RegExp(`^\n?\s*(${emojiPattern})\s*(.*)$`);
+      const numericLessonRegex = /^\n?\s*(\d{1,2})\s*[\.)-]?\s*(.*)$/;
+      const lines = text.split('\n');
+      let currentDay = null;
+      let currentLessonNum = null;
+      let currentLessonInfo = null;
+      for (let raw of lines) {
+        const line = raw.trim();
+        if (line === '' || line.startsWith('═')) continue;
+        const maybeDay = normalizeDay(line);
+        if (maybeDay) {
+          // flush previous lesson before switching day
+          if (currentDay && currentLessonNum && currentLessonInfo && (currentLessonInfo.subject?.length || currentLessonInfo.teacher || currentLessonInfo.cabinet)) {
+            scheduleData[currentDay][String(currentLessonNum)] = currentLessonInfo;
           }
-          if (currentLesson) {
-              scheduleData[day][currentLesson] = lessonInfo;
+          currentDay = maybeDay;
+          if (!scheduleData[currentDay]) scheduleData[currentDay] = {};
+          currentLessonNum = null;
+          currentLessonInfo = null;
+          continue;
+        }
+        if (!currentDay) continue;
+        let m = line.match(emojiLessonRegex);
+        if (!m) m = line.match(numericLessonRegex);
+        if (m) {
+          // Save previous lesson if exists and meaningful
+          if (currentLessonNum && currentLessonInfo && (currentLessonInfo.subject?.length || currentLessonInfo.teacher || currentLessonInfo.cabinet)) {
+            scheduleData[currentDay][String(currentLessonNum)] = currentLessonInfo;
           }
+          const num = m[1];
+          let subjectText = (m[2] || '').trim();
+          let normalizedNum = lessonEmojiMap[num] || String(parseInt(num, 10));
+          const n = parseInt(normalizedNum, 10);
+          if (isNaN(n) || n < 1 || n > 6) {
+            // ignore out-of-range lessons
+            currentLessonNum = null;
+            currentLessonInfo = null;
+            continue;
+          }
+          normalizedNum = String(n);
+          // Skip empty markers like '—' or '-'
+          const isDashOnly = subjectText === '—' || subjectText === '-' || subjectText === '';
+          if (isDashOnly) {
+            currentLessonNum = null;
+            currentLessonInfo = null;
+            continue;
+          }
+          // Remove stray slashes and ignore explicit time-like text if mistakenly on same line
+          subjectText = subjectText.replace('/', ' ').trim();
+          currentLessonNum = normalizedNum;
+          currentLessonInfo = { subject: subjectText ? [subjectText] : [] };
+          continue;
+        }
+        if (!currentLessonInfo) continue;
+        if (line.startsWith('Время:')) {
+          // Ignore any time lines entirely
+          continue;
+        }
+        if (line.startsWith('Преподаватель:')) {
+          currentLessonInfo.teacher = line.replace('Преподаватель:', '').trim();
+          continue;
+        }
+        if (line.startsWith('Кабинеты:') || line.startsWith('Кабинет:')) {
+          currentLessonInfo.cabinet = line.replace('Кабинеты:', '').replace('Кабинет:', '').trim();
+          continue;
+        }
+        if (line !== '—' && line !== '-') {
+          currentLessonInfo.subject = currentLessonInfo.subject || [];
+          currentLessonInfo.subject.push(line);
+        }
       }
+      // Flush last lesson at EOF
+      if (currentDay && currentLessonNum && currentLessonInfo && (currentLessonInfo.subject?.length || currentLessonInfo.teacher || currentLessonInfo.cabinet)) {
+        scheduleData[currentDay][String(currentLessonNum)] = currentLessonInfo;
+      }
+      // Sort days
       const sortedScheduleData = Object.keys(scheduleData)
         .sort((a, b) => dayOrder[a] - dayOrder[b])
         .reduce((obj, key) => { 
-          obj[key] = scheduleData[key]; 
+          // Ensure lessons are sorted numerically and empty ones are dropped
+          const entries = Object.entries(scheduleData[key])
+            .map(([k, v]) => [parseInt(k, 10), v])
+            .filter(([, v]) => (v && (v.subject?.length || v.teacher || v.cabinet)))
+            .sort((a, b) => a[0] - b[0]);
+          const cleaned = {};
+          for (const [num, info] of entries) cleaned[String(num)] = info;
+          obj[key] = cleaned;
           return obj;
         }, {});
       return sortedScheduleData;
     }
 
-    function drawScheduleGrid(ctx, canvas, scheduleData, callScheduleData, canvasHeight, style) {
+    function drawScheduleGrid(ctx, canvas, scheduleData, callScheduleData, canvasHeight, style, exportScale = 1) {
         const daysInSchedule = Object.keys(scheduleData);
         const dayDisplayNames = {
             "ПОНЕДЕЛЬНИК": "Понедельник", "ВТОРНИК": "Вторник", "СРЕДА": "Среда",
@@ -866,11 +923,16 @@
         const cellPadding = 15;
         const lineHeight = 22;
         const callScheduleColWidth = 300;
-        canvas.width = lessonNumColWidth + daysInSchedule.length * dayColWidth + callScheduleColWidth;
-        canvas.height = canvasHeight;
-        const lessonRowHeight = (canvas.height - headerHeight) / 6;
+        const logicalWidth = lessonNumColWidth + daysInSchedule.length * dayColWidth + callScheduleColWidth;
+        const logicalHeight = canvasHeight;
+        canvas.width = Math.round(logicalWidth * exportScale);
+        canvas.height = Math.round(logicalHeight * exportScale);
+        ctx.setTransform(exportScale, 0, 0, exportScale, 0, 0);
+        const canvasW = logicalWidth;
+        const canvasH = logicalHeight;
+        const lessonRowHeight = (canvasH - headerHeight) / 6;
         ctx.fillStyle = "#FFFFFF";
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.fillRect(0, 0, canvasW, canvasH);
         ctx.fillStyle = "#212529";
         ctx.font = "22px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif";
         ctx.textAlign = "center";
@@ -886,11 +948,10 @@
         });
         ctx.textAlign = "center";
         daysInSchedule.forEach((dayKey, dayIndex) => {
-            const daySchedule = scheduleData[dayKey];
-            if (!daySchedule) return;
+            const daySchedule = scheduleData[dayKey] || {};
             for (let lessonNum = 1; lessonNum <= 6; lessonNum++) {
                 const lessonInfo = daySchedule[String(lessonNum)];
-                if (!lessonInfo) continue;
+                if (!lessonInfo) continue; // leave empty cell
                 const rowIndex = lessonNum - 1;
                 const x = lessonNumColWidth + dayIndex * dayColWidth + dayColWidth / 2;
                 let y = headerHeight + rowIndex * lessonRowHeight + cellPadding + 10;
@@ -912,28 +973,28 @@
             }
         });
         const scheduleX = lessonNumColWidth + daysInSchedule.length * dayColWidth;
-        drawCallSchedule(ctx, scheduleX, canvas.height, callScheduleColWidth, callScheduleData);
+        drawCallSchedule(ctx, scheduleX, canvasH, callScheduleColWidth, callScheduleData);
         ctx.strokeStyle = "#E9ECEF";
         ctx.lineWidth = 1;
         ctx.beginPath();
         ctx.moveTo(lessonNumColWidth, 0);
-        ctx.lineTo(lessonNumColWidth, canvas.height);
+        ctx.lineTo(lessonNumColWidth, canvasH);
         daysInSchedule.forEach((_, i) => {
             const x = lessonNumColWidth + (i + 1) * dayColWidth;
-            if (x < canvas.width) {
+            if (x < canvasW) {
                ctx.moveTo(x, 0);
-               ctx.lineTo(x, canvas.height);
+               ctx.lineTo(x, canvasH);
             }
         });
         ctx.moveTo(scheduleX, 0);
-        ctx.lineTo(scheduleX, canvas.height);
+        ctx.lineTo(scheduleX, canvasH);
         for (let i = 0; i <= 6; i++) {
             const y = headerHeight + i * lessonRowHeight;
             ctx.moveTo(0, y);
-            ctx.lineTo(canvas.width, y);
+            ctx.lineTo(canvasW, y);
         }
         ctx.stroke();
-        ctx.strokeRect(0, 0, canvas.width, canvas.height);
+        ctx.strokeRect(0, 0, canvasW, canvasH);
     }
 
     function drawCallSchedule(ctx, x, height, colWidth, data) {
