@@ -277,17 +277,18 @@ async function generateImage() {
   const canvasHeight = Math.max(minTableHeight, callScheduleHeight);
   const canvas = document.createElement("canvas");
   const ctx = canvas.getContext("2d");
+  const exportScale = 3; // 3x for high-resolution export
   
   let style = (typeof getSelectedStyle === 'function') ? getSelectedStyle() : 'style1';
   if (style === 'style3') {
     try {
-      drawScheduleGlassStyle(ctx, canvas, scheduleData, callScheduleData);
+      drawScheduleGlassStyle(ctx, canvas, scheduleData, callScheduleData, exportScale);
     } catch (e) {
       alert('Ошибка генерации (style3): ' + e.message);
       return;
     }
   } else {
-    drawScheduleGrid(ctx, canvas, scheduleData, callScheduleData, canvasHeight, style);
+    drawScheduleGrid(ctx, canvas, scheduleData, callScheduleData, canvasHeight, style, exportScale);
   }
   
   const imgURL = canvas.toDataURL("image/png");
@@ -306,7 +307,7 @@ async function generateImage() {
 }
 
 // Новый стиль glassmorphism для style3
-function drawScheduleGlassStyle(ctx, canvas, scheduleData, callScheduleData) {
+function drawScheduleGlassStyle(ctx, canvas, scheduleData, callScheduleData, exportScale = 1) {
   // Проверки на существование всех нужных данных
   if (!callScheduleData || !callScheduleData.weekday_schedule || !callScheduleData.weekday_lunch || !callScheduleData.saturday_schedule || !callScheduleData.saturday_lunch) {
     alert('Ошибка: не удалось загрузить расписание звонков. Проверьте файл ras.json.');
@@ -362,9 +363,12 @@ function drawScheduleGlassStyle(ctx, canvas, scheduleData, callScheduleData) {
   const gap = 80;
   
   // Высота canvas — по максимальному из всех блоков
-  canvas.width = tableW + callsW + gap + padding*2;
-  canvas.height = Math.max(tableH, callsH1+callsH2+callsGap) + padding*2;
-  ctx.clearRect(0,0,canvas.width,canvas.height);
+  const logicalWidth = tableW + callsW + gap + padding*2;
+  const logicalHeight = Math.max(tableH, callsH1+callsH2+callsGap) + padding*2;
+  canvas.width = Math.round(logicalWidth * exportScale);
+  canvas.height = Math.round(logicalHeight * exportScale);
+  ctx.setTransform(exportScale, 0, 0, exportScale, 0, 0);
+  ctx.clearRect(0,0,logicalWidth,logicalHeight);
   
   // Фон
   let grad = ctx.createLinearGradient(0,0,canvas.width,canvas.height);
@@ -470,8 +474,8 @@ function drawGlassScheduleTable(ctx, x, y, w, h, scheduleData, accent, textColor
       ctx.clip();
       ctx.fillStyle = textColor;
       let y0 = cellY+28+6;
-      let subjectLines = wrapTextLines(ctx, lesson.subject ? lesson.subject.join(' ') : '', cellW-24, 22);
-      let teacherLines = lesson.teacher ? wrapTextLines(ctx, lesson.teacher, cellW-24, 20) : [];
+      let subjectLines = wrapTextLines(ctx, lesson.subject ? lesson.subject.join(' ') : '', cellW-24, 22, 20);
+      let teacherLines = lesson.teacher ? wrapTextLines(ctx, lesson.teacher, cellW-24, 20, 20) : [];
       let cabinetLine = lesson.cabinet ? [lesson.cabinet] : [];
       let startY = y0;
       ctx.font = 'bold 19px -apple-system,Segoe UI,Arial';
@@ -565,22 +569,47 @@ function getCallsBlockHeight(schedule, lunch) {
   return h;
 }
 
-function wrapTextLines(ctx, text, maxWidth, lineHeight) {
+function wrapTextLines(ctx, text, maxWidth, lineHeight, maxCharsPerLine) {
   if (!text) return [];
   const words = text.split(' ');
   let line = '';
   let lines = [];
+  const pushLine = (l) => { if (l && l.trim().length) lines.push(l.trim()); };
   for (let n = 0; n < words.length; n++) {
-    const testLine = line + words[n] + ' ';
-    const metrics = ctx.measureText(testLine);
-    const testWidth = metrics.width;
-    if (testWidth > maxWidth && n > 0) {
-      lines.push(line.trim());
-      line = words[n] + ' ';
+    let word = words[n];
+    // If maxCharsPerLine is set, pre-wrap by character count at spaces
+    if (maxCharsPerLine && (line + word).trim().length > maxCharsPerLine && line.trim().length > 0) {
+      pushLine(line);
+      line = '';
+    }
+    // If a single word is too long, hard-wrap it into chunks
+    if (ctx.measureText(word).width > maxWidth) {
+      // flush current line first
+      pushLine(line);
+      line = '';
+      // break the long word into smaller chunks that fit
+      let chunk = '';
+      for (let i = 0; i < word.length; i++) {
+        const tentative = chunk + word[i];
+        if (ctx.measureText(tentative).width > maxWidth && chunk.length > 0) {
+          pushLine(chunk);
+          chunk = word[i];
+        } else {
+          chunk = tentative;
+        }
+      }
+      pushLine(chunk);
+      continue;
+    }
+    const testLine = line + word + ' ';
+    const testWidth = ctx.measureText(testLine).width;
+    if (testWidth > maxWidth && line) {
+      pushLine(line);
+      line = word + ' ';
     } else {
       line = testLine;
     }
   }
-  lines.push(line.trim());
+  pushLine(line);
   return lines;
 }
