@@ -1220,7 +1220,7 @@
       }
       
       // Ищем без пробела после /
-      const noSpaceAfterSlash = searchName.replace('/\s+', '/');
+      const noSpaceAfterSlash = searchName.replace(/\/\s+/g, '/');
       console.log('Trying no space after slash:', noSpaceAfterSlash);
       if (window.scheduleData[noSpaceAfterSlash]) {
         console.log('Found without space after slash:', noSpaceAfterSlash);
@@ -1228,7 +1228,7 @@
       }
       
       // Ищем с пробелом после /
-      const withSpaceAfterSlash = searchName.replace('/', '/ ');
+      const withSpaceAfterSlash = searchName.replace(/\//g, '/ ');
       console.log('Trying with space after slash:', withSpaceAfterSlash);
       if (window.scheduleData[withSpaceAfterSlash]) {
         console.log('Found with space after slash:', withSpaceAfterSlash);
@@ -1247,10 +1247,11 @@
       }
       
       // Пробуем найти только по названию группы без курса (например, "ИП-191к" найдет "25/ ИП-191к")
-      const searchWithoutCourse = searchName.replace(/^\d+\//, '').trim().toLowerCase();
-      console.log('Trying without course number:', searchWithoutCourse);
+      const searchWithoutCourse = searchName.replace(/^\d+\//, '').trim().toLowerCase().replace(/\s+/g, '');
+      console.log('Trying without course number (normalized):', searchWithoutCourse);
       for (const group of groups) {
-        const groupWithoutCourse = group.replace(/^\d+\//, '').trim().toLowerCase();
+        const groupWithoutCourse = group.replace(/^\d+\//, '').trim().toLowerCase().replace(/\s+/g, '');
+        console.log('  Comparing with:', groupWithoutCourse);
         if (groupWithoutCourse === searchWithoutCourse) {
           console.log('Found by group name only:', group);
           return group;
