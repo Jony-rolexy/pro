@@ -1058,6 +1058,11 @@
     const historyList = document.getElementById('historyList');
     const historySection = document.getElementById('historySection');
     let historyImages = [];
+    
+    // Инициализация глобальной переменной selectedStyle если не определена
+    if (typeof window.selectedStyle === 'undefined') {
+      window.selectedStyle = 'style1';
+    }
 
     function addToHistory(imgUrl) {
       historyImages.unshift(imgUrl);
@@ -1104,6 +1109,19 @@
         preview.classList.remove('hidden');
         addToHistory(outputImg.src);
       }
+    };
+
+    // Глобальная функция getSelectedStyle для совместимости с script.js
+    window.getSelectedStyle = function() {
+      // Сначала проверяем выбранный radio button
+      const checked = document.querySelector('input[name="tableStyle"]:checked');
+      if (checked) {
+        window.selectedStyle = checked.value;
+        return checked.value;
+      }
+      // Если ничего не выбрано, возвращаем глобальный selectedStyle или дефолт
+      return (typeof window.selectedStyle !== 'undefined') ? window.selectedStyle : 
+             (typeof selectedStyle !== 'undefined') ? selectedStyle : 'style1';
     };
 
     // URL-based auto-generation and download
@@ -1166,15 +1184,15 @@
       
       const { groupName, styleNum } = params;
       
-      // Load schedule data if not already loaded
-      if (!scheduleData) {
+      // Load schedule data if not already loaded (используем глобальную window.scheduleData)
+      if (!window.scheduleData) {
         try {
           const response = await fetch('raspisanie.json');
           if (!response.ok) {
             console.error('Failed to load schedule data');
             return false;
           }
-          scheduleData = await response.json();
+          window.scheduleData = await response.json();
         } catch (error) {
           console.error('Error loading schedule:', error);
           return false;
@@ -1182,16 +1200,20 @@
       }
       
       // Check if group exists
-      if (!scheduleData[groupName]) {
+      if (!window.scheduleData[groupName]) {
         console.error('Group not found:', groupName);
+        alert('Группа не найдена: ' + groupName);
         return false;
       }
       
-      // Set the selected style
-      selectedStyle = styleNum === 2 ? 'style3' : 'style1';
+      // Set the selected style globally
+      window.selectedStyle = styleNum === 2 ? 'style3' : 'style1';
+      // Также обновляем radio button
+      const radio = document.querySelector(`input[name="tableStyle"][value="${window.selectedStyle}"]`);
+      if (radio) radio.checked = true;
       
       // Format schedule text
-      const formattedSchedule = formatScheduleForGroup(groupName, scheduleData[groupName]);
+      const formattedSchedule = formatScheduleForGroup(groupName, window.scheduleData[groupName]);
       document.getElementById('inputText').value = formattedSchedule;
       
       // Show main interface
