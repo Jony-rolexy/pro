@@ -1246,6 +1246,28 @@
         }
       }
       
+      // Пробуем найти только по названию группы без курса (например, "ИП-191к" найдет "25/ ИП-191к")
+      const searchWithoutCourse = searchName.replace(/^\d+\//, '').trim().toLowerCase();
+      console.log('Trying without course number:', searchWithoutCourse);
+      for (const group of groups) {
+        const groupWithoutCourse = group.replace(/^\d+\//, '').trim().toLowerCase();
+        if (groupWithoutCourse === searchWithoutCourse) {
+          console.log('Found by group name only:', group);
+          return group;
+        }
+      }
+      
+      // Пробуем найти по части названия (если ввели неполное имя)
+      console.log('Trying partial match...');
+      for (const group of groups) {
+        const groupLower = group.toLowerCase().replace(/\s+/g, '');
+        const searchLower = searchName.toLowerCase().replace(/\s+/g, '');
+        if (groupLower.includes(searchLower) || searchLower.includes(groupLower)) {
+          console.log('Found with partial match:', group);
+          return group;
+        }
+      }
+      
       console.log('Group not found after all attempts');
       return null;
     }
