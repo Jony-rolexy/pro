@@ -1,1432 +1,621 @@
-<!DOCTYPE html>
-<html lang="ru">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Расписание</title>
-  <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
-    
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-      background: #f5f5f7;
-      min-height: 100vh;
-      color: #1d1d1f;
-    }
-    
-    .container {
-      max-width: 800px;
-      margin: 0 auto;
-      padding: 20px;
-      min-height: 100vh;
-    }
-    
-    /* Выбор стиля */
-    .style-selector {
-      background: white;
-      border-radius: 20px;
-      padding: 40px;
-      box-shadow: 0 4px 20px rgba(0,0,0,0.08);
-      text-align: center;
-      margin-bottom: 20px;
-    }
-    
-    .style-title {
-      font-size: 28px;
-      font-weight: 700;
-      color: #1d1d1f;
-      margin-bottom: 40px;
-    }
-    
-    .style-options {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 30px;
-      margin-bottom: 40px;
-    }
-    
-    .style-option {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      cursor: pointer;
-      transition: transform 0.2s ease;
-    }
-    
-    .style-option:active {
-      transform: scale(0.98);
-    }
-    
-    .style-preview {
-      width: 200px;
-      height: 140px;
-      border-radius: 16px;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      margin-bottom: 16px;
-      border: 3px solid transparent;
-      transition: all 0.3s ease;
-      position: relative;
-    }
-    
-    .style-preview.selected {
-      border-color: #007AFF;
-      box-shadow: 0 0 0 1px #007AFF;
-    }
-    
-    .style1 {
-      background: #f8f9fa;
-      color: #1d1d1f;
-      border: 1px solid #e5e5ea;
-    }
-    
-    .style3 {
-      background: rgba(255,255,255,0.9);
-      backdrop-filter: blur(10px);
-      color: #007AFF;
-      border: 1px solid rgba(255,255,255,0.3);
-    }
-    
-    .style-preview-title {
-      font-size: 18px;
-      font-weight: 600;
-      color: #007AFF;
-      margin-bottom: 8px;
-    }
-    
-    .style-preview-content {
-      font-size: 14px;
-      line-height: 1.4;
-    }
-    
-    .style-label {
-      font-size: 17px;
-      font-weight: 500;
-      color: #8e8e93;
-      margin-bottom: 12px;
-    }
-    
-    .style-radio {
-      width: 20px;
-      height: 20px;
-      border: 2px solid #c7c7cc;
-      border-radius: 50%;
-      position: relative;
-      transition: all 0.2s ease;
-    }
-    
-    .style-option input[type="radio"] {
-      display: none;
-    }
-    
-    .style-option input[type="radio"]:checked + .style-preview + .style-label + .style-radio {
-      border-color: #007AFF;
-      background: #007AFF;
-    }
-    
-    .style-option input[type="radio"]:checked + .style-preview + .style-label + .style-radio::after {
-      content: '';
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      width: 8px;
-      height: 8px;
-      background: white;
-      border-radius: 50%;
-    }
-    
-    .btn-primary {
-      background: #1d1d1f;
-      color: white;
-      border: none;
-      border-radius: 50px;
-      padding: 16px 40px;
-      font-size: 17px;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all 0.2s ease;
-      width: 100%;
-      max-width: 300px;
-    }
-    
-    .btn-primary:hover {
-      background: #2d2d2f;
-    }
-    
-    .btn-primary:active {
-      transform: scale(0.98);
-    }
-    
-    /* Основной интерфейс */
-    .main-interface {
-      background: white;
-      border-radius: 20px;
-      padding: 30px;
-      box-shadow: 0 4px 20px rgba(0,0,0,0.08);
-      margin-bottom: 20px;
-    }
-    
-    .back-button {
-      background: none;
-      border: none;
-      color: #007AFF;
-      font-size: 17px;
-      font-weight: 500;
-      cursor: pointer;
-      margin-bottom: 20px;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      transition: opacity 0.2s ease;
-    }
-    
-    .back-button:hover {
-      opacity: 0.7;
-    }
-    
-    .back-button:active {
-      transform: scale(0.98);
-    }
-    
-    .textarea-container {
-      margin-bottom: 24px;
-    }
-    
-    .textarea-label {
-      font-size: 17px;
-      font-weight: 600;
-      color: #1d1d1f;
-      margin-bottom: 12px;
-      display: block;
-    }
-    
-    textarea {
-      width: 100%;
-      min-height: 200px;
-      border: 1px solid #e5e5ea;
-      border-radius: 12px;
-      padding: 16px;
-      font-size: 16px;
-      font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', monospace;
-      background: #fafafa;
-      color: #1d1d1f;
-      resize: vertical;
-      transition: all 0.2s ease;
-      line-height: 1.4;
-    }
-    
-    textarea:focus {
-      outline: none;
-      border-color: #007AFF;
-      background: white;
-    }
-    
-    textarea::placeholder {
-      color: #8e8e93;
-    }
-    
-    .generate-btn {
-      background: #007AFF;
-      color: white;
-      border: none;
-      border-radius: 50px;
-      padding: 16px 40px;
-      font-size: 17px;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all 0.2s ease;
-      width: 100%;
-    }
-    
-    .generate-btn:hover {
-      background: #0056b3;
-    }
-    
-    .generate-btn:active {
-      transform: scale(0.98);
-    }
-    
-    /* Кнопка загрузки группы */
-    .load-group-btn {
-      background: #34C759;
-      color: white;
-      border: none;
-      border-radius: 50px;
-      padding: 12px 24px;
-      font-size: 16px;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all 0.2s ease;
-      white-space: nowrap;
-    }
-    
-    .load-group-btn:hover {
-      background: #28A745;
-    }
-    
-    .load-group-btn:active {
-      transform: scale(0.98);
-    }
-    
-    /* Модальное окно выбора группы */
-    .group-modal {
-      display: none;
-      position: fixed;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background: rgba(0,0,0,0.8);
-      z-index: 9999;
-      align-items: center;
-      justify-content: center;
-      padding: 20px;
-    }
-    
-    .group-modal.show {
-      display: flex;
-      animation: fadeIn 0.3s ease-out;
-    }
-    
-    .group-modal-content {
-      background: white;
-      border-radius: 20px;
-      padding: 30px;
-      max-width: 600px;
-      width: 100%;
-      max-height: 80vh;
-      overflow-y: auto;
-      box-shadow: 0 8px 32px rgba(0,0,0,0.5);
-      animation: slideIn 0.3s ease-out;
-    }
-    
-    @keyframes slideIn {
-      from { 
-        opacity: 0; 
-        transform: translateY(-20px) scale(0.95); 
-      }
-      to { 
-        opacity: 1; 
-        transform: translateY(0) scale(1); 
-      }
-    }
-    
-    .group-modal-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 24px;
-    }
-    
-    .group-modal-title {
-      font-size: 24px;
-      font-weight: 700;
-      color: #1d1d1f;
-    }
-    
-    .group-modal-close {
-      background: none;
-      border: none;
-      font-size: 24px;
-      cursor: pointer;
-      color: #8e8e93;
-      padding: 8px;
-      border-radius: 50%;
-      transition: all 0.2s ease;
-    }
-    
-    .group-modal-close:hover {
-      background: #f5f5f7;
-      color: #1d1d1f;
-    }
-    
-    .group-search {
-      margin-bottom: 20px;
-    }
-    
-    .group-search input {
-      width: 100%;
-      padding: 12px 16px;
-      border: 1px solid #e5e5ea;
-      border-radius: 12px;
-      font-size: 16px;
-      background: #fafafa;
-      transition: all 0.2s ease;
-    }
-    
-    .group-search input:focus {
-      outline: none;
-      border-color: #007AFF;
-      background: white;
-    }
-    
-    .group-list {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-      gap: 12px;
-      max-height: 400px;
-      overflow-y: auto;
-    }
-    
-    .group-item {
-      background: #f8f9fa;
-      border: 1px solid #e5e5ea;
-      border-radius: 12px;
-      padding: 16px;
-      cursor: pointer;
-      transition: all 0.2s ease;
-      text-align: center;
-      font-weight: 500;
-    }
-    
-    .group-item:hover {
-      background: #007AFF;
-      color: white;
-      border-color: #007AFF;
-    }
-    
-    .group-item:active {
-      transform: scale(0.98);
-    }
-    
-    .group-item.selected {
-      background: #007AFF;
-      color: white;
-      border-color: #007AFF;
-    }
-    
-    /* Preview section */
-    .preview {
-      background: white;
-      border-radius: 20px;
-      padding: 30px;
-      box-shadow: 0 4px 20px rgba(0,0,0,0.08);
-      margin-bottom: 20px;
-      text-align: center;
-    }
-    
-    .preview img {
-      max-width: 100%;
-      height: auto;
-      border-radius: 12px;
-      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-      margin-bottom: 20px;
-    }
-    
-    .download-btn {
-      background: #34C759;
-      color: white;
-      border: none;
-      border-radius: 50px;
-      padding: 12px 30px;
-      font-size: 16px;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all 0.2s ease;
-    }
-    
-    .download-btn:hover {
-      background: #28A745;
-    }
-    
-    .download-btn:active {
-      transform: scale(0.98);
-    }
-    
-    /* История */
-    .history-section {
-      margin-top: 30px;
-    }
-    
-    .history-title {
-      font-size: 22px;
-      font-weight: 600;
-      color: #1d1d1f;
-      margin-bottom: 20px;
-    }
-    
-    .history-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-      gap: 16px;
-    }
-    
-    .history-item {
-      background: white;
-      border-radius: 16px;
-      padding: 12px;
-      position: relative;
-      box-shadow: 0 2px 10px rgba(0,0,0,0.08);
-      border: 1px solid #f0f0f0;
-      transition: all 0.2s ease;
-    }
-    
-    .history-item:hover {
-      box-shadow: 0 4px 20px rgba(0,0,0,0.12);
-    }
-    
-    .history-image {
-      width: 100%;
-      height: 120px;
-      object-fit: contain;
-      border-radius: 12px;
-      background: #f8f9fa;
-      cursor: pointer;
-      transition: transform 0.2s ease;
-    }
-    
-    .history-image:active {
-      transform: scale(0.98);
-    }
-    
-    .history-download {
-      position: absolute;
-      top: 8px;
-      right: 8px;
-      width: 32px;
-      height: 32px;
-      background: rgba(255,255,255,0.95);
-      backdrop-filter: blur(10px);
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      cursor: pointer;
-      transition: all 0.2s ease;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.15);
-    }
-    
-    .history-download:hover {
-      background: white;
-      transform: scale(1.05);
-    }
-    
-    .history-download:active {
-      transform: scale(0.95);
-    }
-    
-    /* Лайтбокс */
-    .lightbox {
-      display: none;
-      position: fixed;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background: rgba(0,0,0,0.9);
-      z-index: 9999;
-      align-items: center;
-      justify-content: center;
-      padding: 20px;
-    }
-    
-    .lightbox.show {
-      display: flex;
-    }
-    
-    .lightbox img {
-      max-width: 95%;
-      max-height: 95%;
-      border-radius: 16px;
-      box-shadow: 0 8px 32px rgba(0,0,0,0.5);
-    }
-    
-    .style-lightbox {
-      display: none;
-      position: fixed;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background: rgba(0,0,0,0.8);
-      z-index: 9998;
-      align-items: center;
-      justify-content: center;
-      padding: 20px;
-    }
-    
-    .style-lightbox.show {
-      display: flex;
-    }
-    
-    .lightbox-canvas {
-      border-radius: 20px;
-      box-shadow: 0 8px 32px rgba(0,0,0,0.5);
-      max-width: 90vw;
-      max-height: 90vh;
-    }
-    
-    .hidden {
-      display: none !important;
-    }
-    
-    /* Адаптивность */
-    @media (max-width: 768px) {
-      .container {
-        padding: 16px;
-      }
-      
-      .style-selector {
-        padding: 30px 20px;
-      }
-      
-      .style-title {
-        font-size: 24px;
-        margin-bottom: 30px;
-      }
-      
-      .style-options {
-        grid-template-columns: 1fr;
-        gap: 20px;
-      }
-      
-      .style-preview {
-        width: 100%;
-        max-width: 280px;
-        height: 120px;
-      }
-      
-      .main-interface {
-        padding: 20px;
-      }
-      
-      .preview {
-        padding: 20px;
-      }
-      
-      .history-grid {
-        grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-        gap: 12px;
-      }
-      
-      .history-image {
-        height: 100px;
-      }
-      
-      /* Адаптивность для модального окна группы */
-      .group-modal-content {
-        margin: 20px;
-        padding: 20px;
-        max-height: 90vh;
-      }
-      
-      .group-modal-title {
-        font-size: 20px;
-      }
-      
-      .group-list {
-        grid-template-columns: 1fr;
-        max-height: 300px;
-      }
-      
-      .group-item {
-        padding: 12px;
-        font-size: 14px;
-      }
-    }
-    
-    @media (max-width: 480px) {
-      .style-preview {
-        height: 100px;
-      }
-      
-      .history-grid {
-        grid-template-columns: 1fr 1fr;
-      }
-      
-      .history-image {
-        height: 80px;
-      }
-    }
-    
-    /* Анимации */
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(20px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-    
-    .style-selector, .main-interface, .preview {
-      animation: fadeIn 0.5s ease-out;
-    }
-  </style>
- 
-</head>
-<body>
-  <div class="container">
-    <!-- Выбор стиля -->
-    <div id="styleSelector" class="style-selector">
-      <h1 class="style-title">Выберите дизайн таблицы</h1>
-      <div class="style-options">
-        <label class="style-option">
-          <input type="radio" name="tableStyle" value="style1" checked>
-          <div class="style-preview style1" onclick="openStyleLightbox(1)">
-            <div class="style-preview-title">Суббота</div>
-            <div class="style-preview-content">
-              1. Физика<br>
-              2. Математика<br>
-              3. Английский
-            </div>
-          </div>
-          <span class="style-label"></span>
-          <div class="style-radio"></div>
-        </label>
-        <label class="style-option">
-          <input type="radio" name="tableStyle" value="style3">
-          <div class="style-preview style3" onclick="openStyleLightbox(3)">
-            <div class="style-preview-title">Суббота</div>
-            <div class="style-preview-content">
-              1. Физика<br>
-              2. Математика<br>
-              3. Английский
-            </div>
-          </div>
-          <span class="style-label"></span>
-          <div class="style-radio"></div>
-        </label>
-      </div>
-      <button id="chooseStyleBtn" class="btn-primary">Выбрать стиль</button>
-    </div>
+// Глобальные переменные для доступа из всех скриптов
+if (typeof window.selectedStyle === 'undefined') {
+  window.selectedStyle = 'style1';
+}
+if (typeof window.scheduleData === 'undefined') {
+  window.scheduleData = null;
+}
 
-    <!-- Основной интерфейс -->
-    <div id="mainInput" class="hidden">
-      <div class="main-interface">
-        <button id="backToStyleBtn" class="back-button">
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-            <path d="M10.5 3.5L6 8l4.5 4.5" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
-          </svg>
-          Выбрать другой стиль
-        </button>
-        
-        <div class="textarea-container">
-          <label class="textarea-label">Вставьте сюда текст расписания...</label>
-          <div style="display: flex; gap: 12px; margin-bottom: 12px;">
-            <button id="loadGroupBtn" class="load-group-btn">📚 Загрузить расписание группы</button>
-          </div>
-          <textarea id="inputText" placeholder="Вставьте сюда текст расписания...">📚 Расписание для группы 24/ИП-191к
-Сверяйте расписание с гугл таблицей! Здесь возможны ошибки. В случае неточностей, сообщите нам!
+window.addEventListener('DOMContentLoaded', function() {
+  // Мини-превью таблиц (только для style1 и style3)
+  drawAllPreviews();
 
-
-═══════════════
- СУББОТА
-═══════════════
-
-1️⃣ ЭКЗАМЕН
-Физика 
-9.00
-Преподаватель: Шматков
-Кабинет: 417</textarea>
-        </div>
-        <button onclick="generateImage()" class="generate-btn">Сгенерировать фото</button>
-      </div>
-
-      <!-- Preview section -->
-      <div id="preview" class="preview hidden">
-        <img id="outputImg" src="" alt="Сгенерированное расписание">
-        <br>
-        <button id="downloadButton" class="download-btn">Скачать изображение</button>
-      </div>
-
-      <!-- История -->
-      <div id="historySection" class="history-section hidden">
-        <h3 class="history-title">Список сгенерированных расписаний:</h3>
-        <div id="historyList" class="history-grid"></div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Лайтбоксы -->
-  <div id="lightbox" class="lightbox" onclick="closeLightbox(event)">
-    <img id="lightboxImg" src="">
-  </div>
-
-  <div id="styleLightbox" class="style-lightbox" onclick="closeStyleLightbox(event)">
-    <canvas id="lightboxCanvas" class="lightbox-canvas" width="400" height="260"></canvas>
-  </div>
-
-  <!-- Модальное окно выбора группы -->
-  <div id="groupModal" class="group-modal" onclick="closeGroupModal(event)">
-    <div class="group-modal-content" onclick="event.stopPropagation()">
-      <div class="group-modal-header">
-        <h2 class="group-modal-title">Выберите группу</h2>
-        <button class="group-modal-close" onclick="closeGroupModal()">×</button>
-      </div>
-      <div class="group-search">
-        <input type="text" id="groupSearch" placeholder="Поиск группы..." oninput="filterGroups()">
-      </div>
-      <div id="groupList" class="group-list">
-        <!-- Группы будут загружены динамически -->
-      </div>
-    </div>
-  </div>
-
-  <script src="script.js"></script>
-  <script>
-    function wrapText(context, text, x, y, maxWidth, lineHeight) {
-        const words = text.split(' ');
-        let line = '';
-        for (let n = 0; n < words.length; n++) {
-            const testLine = line + words[n] + ' ';
-            const metrics = context.measureText(testLine);
-            const testWidth = metrics.width;
-            if (testWidth > maxWidth && n > 0) {
-                context.fillText(line.trim(), x, y);
-                line = words[n] + ' ';
-                y += lineHeight;
-            } else {
-                line = testLine;
-            }
-        }
-        context.fillText(line.trim(), x, y);
-        return y + lineHeight;
+  // Lightbox
+  window.openStyleLightbox = function(idx) {
+    // Преобразуем индекс: 1 -> style1, 3 -> style3
+    const styleMap = { 1: 'style1', 3: 'style3' };
+    const style = styleMap[idx];
+    if (style) {
+      drawLightboxPreview(style);
+      document.getElementById('styleLightbox').classList.add('show');
     }
-
-    function estimateCallScheduleHeight(data, colWidth) {
-      let h = 0;
-      const padding = 20;
-      const titleH = 35 + 12;
-      const pairH = 25 + 20 * 2;
-      const lunchH = 25 + 20 * 2;
-      h += titleH + data.weekday_schedule.pairs.length * pairH;
-      h += titleH + data.weekday_lunch.times.length * 20;
-      h += 15;
-      h += titleH + data.saturday_schedule.pairs.length * pairH;
-      h += titleH + data.saturday_lunch.times.length * 20;
-      h += 40;
-      return h;
+  };
+  
+  window.closeStyleLightbox = function(e) {
+    if (e.target.id === 'styleLightbox' || e.target.id === 'lightboxCanvas') {
+      document.getElementById('styleLightbox').classList.remove('show');
     }
+  };
 
-    function parseScheduleText(text) {
-      const scheduleData = {};
-      const daysInRussian = ["ПОНЕДЕЛЬНИК", "ВТОРНИК", "СРЕДА", "ЧЕТВЕРГ", "ПЯТНИЦА", "СУББОТА"];
-      const dayOrder = { "ПОНЕДЕЛЬНИК": 1, "ВТОРНИК": 2, "СРЕДА": 3, "ЧЕТВЕРГ": 4, "ПЯТНИЦА": 5, "СУББОТА": 6 };
-      const normalizeDay = (line) => {
-        const upper = line.replace(/[\p{Emoji_Presentation}\p{Extended_Pictographic}]/gu, '').replace(/[^\p{L}]/gu, ' ').toUpperCase().trim();
-        for (const day of daysInRussian) {
-          if (upper.includes(day)) return day;
-        }
-        return null;
-      };
-      const lessonEmojiMap = {
-        '1️⃣': '1', '2️⃣': '2', '3️⃣': '3', '4️⃣': '4', '5️⃣': '5',
-          '6️⃣': '6', '7️⃣': '7', '8️⃣': '8', '9️⃣': '9'
-      };
-      const emojiPattern = Object.keys(lessonEmojiMap).map(s => s.replace(/([.*+?^${}()|[\]\\])/g, '\\$1')).join('|');
-      const emojiLessonRegex = new RegExp(`^\n?\s*(${emojiPattern})\s*(.*)$`);
-      const numericLessonRegex = /^\n?\s*(\d{1,2})\s*[\.)-]?\s*(.*)$/;
-      const lines = text.split('\n');
-      let currentDay = null;
-      let currentLessonNum = null;
-      let currentLessonInfo = null;
-      for (let raw of lines) {
-        const line = raw.trim();
-        if (line === '' || line.startsWith('═')) continue;
-        const maybeDay = normalizeDay(line);
-        if (maybeDay) {
-          // flush previous lesson before switching day
-          if (currentDay && currentLessonNum && currentLessonInfo && (currentLessonInfo.subject?.length || currentLessonInfo.teacher || currentLessonInfo.cabinet)) {
-            scheduleData[currentDay][String(currentLessonNum)] = currentLessonInfo;
-          }
-          currentDay = maybeDay;
-          if (!scheduleData[currentDay]) scheduleData[currentDay] = {};
-          currentLessonNum = null;
-          currentLessonInfo = null;
-          continue;
-        }
-        if (!currentDay) continue;
-        let m = line.match(emojiLessonRegex);
-        if (!m) m = line.match(numericLessonRegex);
-        if (m) {
-          // Save previous lesson if exists and meaningful
-          if (currentLessonNum && currentLessonInfo && (currentLessonInfo.subject?.length || currentLessonInfo.teacher || currentLessonInfo.cabinet)) {
-            scheduleData[currentDay][String(currentLessonNum)] = currentLessonInfo;
-          }
-          const num = m[1];
-          let subjectText = (m[2] || '').trim();
-          let normalizedNum = lessonEmojiMap[num] || String(parseInt(num, 10));
-          const n = parseInt(normalizedNum, 10);
-          if (isNaN(n) || n < 1 || n > 6) {
-            // ignore out-of-range lessons
-            currentLessonNum = null;
-            currentLessonInfo = null;
-            continue;
-          }
-          normalizedNum = String(n);
-          // Skip empty markers like '—' or '-'
-          const isDashOnly = subjectText === '—' || subjectText === '-' || subjectText === '';
-          if (isDashOnly) {
-            currentLessonNum = null;
-            currentLessonInfo = null;
-            continue;
-          }
-          // Remove stray slashes and ignore explicit time-like text if mistakenly on same line
-          subjectText = subjectText.replace('/', ' ').trim();
-          currentLessonNum = normalizedNum;
-          currentLessonInfo = { subject: subjectText ? [subjectText] : [] };
-          continue;
-        }
-        if (!currentLessonInfo) continue;
-        if (line.startsWith('Время:')) {
-          // Ignore any time lines entirely
-          continue;
-        }
-        if (line.startsWith('Преподаватель:')) {
-          currentLessonInfo.teacher = line.replace('Преподаватель:', '').trim();
-          continue;
-        }
-        if (line.startsWith('Кабинеты:') || line.startsWith('Кабинет:')) {
-          currentLessonInfo.cabinet = line.replace('Кабинеты:', '').replace('Кабинет:', '').trim();
-          continue;
-        }
-        if (line !== '—' && line !== '-') {
-          currentLessonInfo.subject = currentLessonInfo.subject || [];
-          currentLessonInfo.subject.push(line);
-        }
-      }
-      // Flush last lesson at EOF
-      if (currentDay && currentLessonNum && currentLessonInfo && (currentLessonInfo.subject?.length || currentLessonInfo.teacher || currentLessonInfo.cabinet)) {
-        scheduleData[currentDay][String(currentLessonNum)] = currentLessonInfo;
-      }
-      // Sort days
-      const sortedScheduleData = Object.keys(scheduleData)
-        .sort((a, b) => dayOrder[a] - dayOrder[b])
-        .reduce((obj, key) => { 
-          // Ensure lessons are sorted numerically and empty ones are dropped
-          const entries = Object.entries(scheduleData[key])
-            .map(([k, v]) => [parseInt(k, 10), v])
-            .filter(([, v]) => (v && (v.subject?.length || v.teacher || v.cabinet)))
-            .sort((a, b) => a[0] - b[0]);
-          const cleaned = {};
-          for (const [num, info] of entries) cleaned[String(num)] = info;
-          obj[key] = cleaned;
-          return obj;
-        }, {});
-      return sortedScheduleData;
-    }
+  // Кнопка выбрать стиль
+  document.getElementById('chooseStyleBtn').onclick = function() {
+    const checked = document.querySelector('input[name="tableStyle"]:checked');
+    window.selectedStyle = checked ? checked.value : 'style1';
+    document.getElementById('styleSelector').classList.add('hidden');
+    document.getElementById('mainInput').classList.remove('hidden');
+  };
+  
+  // Кнопка назад
+  document.getElementById('backToStyleBtn').onclick = function() {
+    document.getElementById('mainInput').classList.add('hidden');
+    document.getElementById('styleSelector').classList.remove('hidden');
+  };
 
-    function drawScheduleGrid(ctx, canvas, scheduleData, callScheduleData, canvasHeight, style, exportScale = 1) {
-        const daysInSchedule = Object.keys(scheduleData);
-        const dayDisplayNames = {
-            "ПОНЕДЕЛЬНИК": "Понедельник", "ВТОРНИК": "Вторник", "СРЕДА": "Среда",
-            "ЧЕТВЕРГ": "Четверг", "ПЯТНИЦА": "Пятница", "СУББОТА": "Суббота"
-        };
-        const romanNumerals = ["I", "II", "III", "IV", "V", "VI"];
-        const lessonNumColWidth = 60;
-        const dayColWidth = 210;
-        const headerHeight = 70;
-        const cellPadding = 15;
-        const lineHeight = 22;
-        const callScheduleColWidth = 300;
-        const logicalWidth = lessonNumColWidth + daysInSchedule.length * dayColWidth + callScheduleColWidth;
-        const logicalHeight = canvasHeight;
-        canvas.width = Math.round(logicalWidth * exportScale);
-        canvas.height = Math.round(logicalHeight * exportScale);
-        ctx.setTransform(exportScale, 0, 0, exportScale, 0, 0);
-        const canvasW = logicalWidth;
-        const canvasH = logicalHeight;
-        const lessonRowHeight = (canvasH - headerHeight) / 6;
-        ctx.fillStyle = "#FFFFFF";
-        ctx.fillRect(0, 0, canvasW, canvasH);
-        ctx.fillStyle = "#212529";
-        ctx.font = "22px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif";
-        ctx.textAlign = "center";
-        ctx.textBaseline = "middle";
-        daysInSchedule.forEach((dayKey, index) => {
-            const x = lessonNumColWidth + index * dayColWidth + dayColWidth / 2;
-            ctx.fillText(dayDisplayNames[dayKey] || dayKey, x, headerHeight / 2);
-        });
-        ctx.font = "22px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif";
-        romanNumerals.forEach((num, index) => {
-            const y = headerHeight + index * lessonRowHeight + lessonRowHeight / 2;
-            ctx.fillText(num, lessonNumColWidth / 2, y);
-        });
-        ctx.textAlign = "center";
-        daysInSchedule.forEach((dayKey, dayIndex) => {
-            const daySchedule = scheduleData[dayKey] || {};
-            for (let lessonNum = 1; lessonNum <= 6; lessonNum++) {
-                const lessonInfo = daySchedule[String(lessonNum)];
-                if (!lessonInfo) continue; // leave empty cell
-                const rowIndex = lessonNum - 1;
-                const x = lessonNumColWidth + dayIndex * dayColWidth + dayColWidth / 2;
-                let y = headerHeight + rowIndex * lessonRowHeight + cellPadding + 10;
-                const availableWidth = dayColWidth - (cellPadding * 2);
-                ctx.fillStyle = "#212529";
-                if (lessonInfo.subject && lessonInfo.subject.length > 0){
-                    ctx.font = "bold 18px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif";
-                    const subjectText = lessonInfo.subject.join(' ');
-                    y = wrapText(ctx, subjectText, x, y, availableWidth, lineHeight);
-                }
-                ctx.font = "18px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif";
-                if (lessonInfo.teacher) {
-                    ctx.fillText(lessonInfo.teacher, x, y, availableWidth);
-                    y += lineHeight;
-                }
-                if (lessonInfo.cabinet) {
-                    ctx.fillText(lessonInfo.cabinet, x, y, availableWidth);
-                }
-            }
-        });
-        const scheduleX = lessonNumColWidth + daysInSchedule.length * dayColWidth;
-        drawCallSchedule(ctx, scheduleX, canvasH, callScheduleColWidth, callScheduleData);
-        ctx.strokeStyle = "#E9ECEF";
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.moveTo(lessonNumColWidth, 0);
-        ctx.lineTo(lessonNumColWidth, canvasH);
-        daysInSchedule.forEach((_, i) => {
-            const x = lessonNumColWidth + (i + 1) * dayColWidth;
-            if (x < canvasW) {
-               ctx.moveTo(x, 0);
-               ctx.lineTo(x, canvasH);
-            }
-        });
-        ctx.moveTo(scheduleX, 0);
-        ctx.lineTo(scheduleX, canvasH);
-        for (let i = 0; i <= 6; i++) {
-            const y = headerHeight + i * lessonRowHeight;
-            ctx.moveTo(0, y);
-            ctx.lineTo(canvasW, y);
-        }
-        ctx.stroke();
-        ctx.strokeRect(0, 0, canvasW, canvasH);
-    }
+  // Кнопка загрузки группы
+  document.getElementById('loadGroupBtn').onclick = function() {
+    openGroupModal();
+  };
 
-    function drawCallSchedule(ctx, x, height, colWidth, data) {
-        ctx.fillStyle = "#212529";
-        ctx.textAlign = "left";
-        const padding = 20;
-        let currentY = 0;
-        const drawSection = (sectionData, isPairSection) => {
-            if (!sectionData) return;
-            currentY += 35;
-            ctx.font = "bold 18px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif";
-            const titleText = `${sectionData.icon} ${sectionData.title}`;
-            ctx.fillText(titleText, x + padding, currentY);
-            currentY += 12;
-            ctx.font = "16px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif";
-            const items = isPairSection ? sectionData.pairs : [{ times: sectionData.times }];
-            items.forEach(item => {
-                currentY += 25;
-                if (item.name) {
-                    ctx.fillText(item.name, x + padding, currentY);
-                }
-                item.times.forEach(time => {
-                    if(!item.name) {
-                         currentY += 5;
-                         ctx.fillText(time, x + padding, currentY);
-                    } else {
-                        ctx.textAlign = "right";
-                        ctx.fillText(time, x + colWidth - padding, currentY);
-                        ctx.textAlign = "left";
-                    }
-                    currentY += 20;
-                });
-            });
-        };
-        drawSection(data.weekday_schedule, true);
-        drawSection(data.weekday_lunch, false);
-        currentY += 15;
-        ctx.beginPath();
-        ctx.moveTo(x + padding, currentY);
-        ctx.lineTo(x + colWidth - padding, currentY);
-        ctx.strokeStyle = "#E9ECEF";
-        ctx.lineWidth = 1;
-        ctx.stroke();
-        drawSection(data.saturday_schedule, true);
-        drawSection(data.saturday_lunch, false);
-    }
-
-    function openLightbox(imgUrl) {
-      const lightbox = document.getElementById('lightbox');
-      const lightboxImg = document.getElementById('lightboxImg');
-      lightboxImg.src = imgUrl;
-      lightbox.classList.add('show');
-    }
-
-    function closeLightbox(event) {
-      if (event.target.id === 'lightbox' || event.target.id === 'lightboxImg') {
-        document.getElementById('lightbox').classList.remove('show');
+  // Обработчик клавиши Escape для закрытия модального окна
+  document.addEventListener('keydown', function(event) {
+    if (event.key === 'Escape') {
+      const groupModal = document.getElementById('groupModal');
+      if (groupModal.classList.contains('show')) {
+        closeGroupModal();
       }
     }
+  });
+});
 
-    const historyList = document.getElementById('historyList');
-    const historySection = document.getElementById('historySection');
-    let historyImages = [];
+// Функции для работы с модальным окном группы
+window.openGroupModal = async function() {
+  const modal = document.getElementById('groupModal');
+  const groupList = document.getElementById('groupList');
+  
+  // Показываем модальное окно сразу
+  modal.classList.add('show');
+  groupList.innerHTML = '<div style="text-align: center; padding: 20px; color: #8e8e93;">Загрузка групп...</div>';
+  
+  if (!window.scheduleData) {
+    try {
+      const response = await fetch('raspisanie.json');
+      if (!response.ok) {
+        throw new Error('Не удалось загрузить файл расписания');
+      }
+      window.scheduleData = await response.json();
+    } catch (error) {
+      groupList.innerHTML = '<div style="text-align: center; padding: 20px; color: #ff3b30;">Ошибка загрузки расписания: ' + error.message + '</div>';
+      return;
+    }
+  }
+  
+  renderGroupList();
+  document.getElementById('groupSearch').focus();
+};
+
+window.closeGroupModal = function(event) {
+  if (event && event.target.id === 'groupModal') {
+    document.getElementById('groupModal').classList.remove('show');
+  } else {
+    document.getElementById('groupModal').classList.remove('show');
+  }
+};
+
+window.filterGroups = function() {
+  const searchTerm = document.getElementById('groupSearch').value.toLowerCase();
+  const groupItems = document.querySelectorAll('.group-item');
+  
+  groupItems.forEach(item => {
+    const groupName = item.textContent.toLowerCase();
+    if (groupName.includes(searchTerm)) {
+      item.style.display = 'block';
+    } else {
+      item.style.display = 'none';
+    }
+  });
+};
+
+window.selectGroup = function(groupName) {
+  if (!window.scheduleData || !window.scheduleData[groupName]) {
+    alert('Данные для группы не найдены');
+    return;
+  }
+  
+  const formattedSchedule = formatScheduleForGroup(groupName, window.scheduleData[groupName]);
+  document.getElementById('inputText').value = formattedSchedule;
+  closeGroupModal();
+};
+
+function renderGroupList() {
+  const groupList = document.getElementById('groupList');
+  groupList.innerHTML = '';
+  
+  if (!window.scheduleData) return;
+  
+  const groups = Object.keys(window.scheduleData).sort();
+  
+  groups.forEach(group => {
+    const groupItem = document.createElement('div');
+    groupItem.className = 'group-item';
+    groupItem.textContent = group;
+    groupItem.onclick = () => selectGroup(group);
+    groupList.appendChild(groupItem);
+  });
+}
+
+function formatScheduleForGroup(groupName, groupData) {
+  const daysInRussian = ["ПОНЕДЕЛЬНИК", "ВТОРНИК", "СРЕДА", "ЧЕТВЕРГ", "ПЯТНИЦА", "СУББОТА"];
+  const dayOrder = { "ПОНЕДЕЛЬНИК": 1, "ВТОРНИК": 2, "СРЕДА": 3, "ЧЕТВЕРГ": 4, "ПЯТНИЦА": 5, "СУББОТА": 6 };
+  const lessonEmojiMap = {
+    '1': '1️⃣', '2': '2️⃣', '3': '3️⃣', '4': '4️⃣', '5': '5️⃣',
+    '6': '6️⃣', '7': '7️⃣', '8': '8️⃣', '9': '9️⃣'
+  };
+  
+  let scheduleText = `📚 Расписание для группы ${groupName}\n`;
+  scheduleText += `Сверяйте расписание с гугл таблицей! Здесь возможны ошибки. В случае неточностей, сообщите нам!\n\n\n`;
+  
+  // Сортируем дни недели в правильном порядке
+  const sortedDays = Object.keys(groupData).sort((a, b) => dayOrder[a] - dayOrder[b]);
+  
+  sortedDays.forEach(day => {
+    scheduleText += `═══════════════\n`;
+    scheduleText += `${day}\n`;
+    scheduleText += `═══════════════\n`;
     
-    // Инициализация глобальной переменной selectedStyle если не определена
-    if (typeof window.selectedStyle === 'undefined') {
-      window.selectedStyle = 'style1';
-    }
-
-    function addToHistory(imgUrl) {
-      historyImages.unshift(imgUrl);
-      renderHistory();
-    }
-
-    function renderHistory() {
-      historyList.innerHTML = '';
-      historyImages.forEach((imgUrl, idx) => {
-        const item = document.createElement('div');
-        item.className = 'history-item';
-        
-        const img = document.createElement('img');
-        img.className = 'history-image';
-        img.src = imgUrl;
-        img.alt = 'Сгенерированное расписание';
-        img.onclick = () => openLightbox(imgUrl);
-        item.appendChild(img);
-        
-        const downloadBtn = document.createElement('div');
-        downloadBtn.className = 'history-download';
-        downloadBtn.innerHTML = `<svg width="16" height="16" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M10 3V15M10 15L5 10M10 15L15 10" stroke="#007AFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
-        downloadBtn.onclick = (e) => {
-          e.stopPropagation();
-          const a = document.createElement('a');
-          a.href = imgUrl;
-          a.download = 'schedule.png';
-          a.click();
-        };
-        item.appendChild(downloadBtn);
-        
-        historyList.appendChild(item);
-      });
+    const daySchedule = groupData[day];
+    const sortedLessons = Object.keys(daySchedule).sort((a, b) => parseInt(a) - parseInt(b));
+    
+    sortedLessons.forEach(lessonNum => {
+      const lesson = daySchedule[lessonNum];
+      scheduleText += `${lessonEmojiMap[lessonNum]} ${lesson.предмет}\n`;
       
-      historySection.classList.toggle('hidden', historyImages.length === 0);
-    }
-
-    const origGenerateImage = window.generateImage;
-    window.generateImage = async function() {
-      await origGenerateImage();
-      const outputImg = document.getElementById('outputImg');
-      const preview = document.getElementById('preview');
-      if (outputImg && outputImg.src && outputImg.src.startsWith('data:image')) {
-        preview.classList.remove('hidden');
-        addToHistory(outputImg.src);
-      }
-    };
-
-    // Глобальная функция getSelectedStyle для совместимости с script.js
-    window.getSelectedStyle = function() {
-      // Сначала проверяем выбранный radio button
-      const checked = document.querySelector('input[name="tableStyle"]:checked');
-      if (checked) {
-        window.selectedStyle = checked.value;
-        return checked.value;
-      }
-      // Если ничего не выбрано, возвращаем глобальный selectedStyle или дефолт
-      return (typeof window.selectedStyle !== 'undefined') ? window.selectedStyle : 
-             (typeof selectedStyle !== 'undefined') ? selectedStyle : 'style1';
-    };
-
-    // URL-based auto-generation and download
-    // Используем hash-роутинг для совместимости с GitHub Pages
-    // Формат: #/24/КС-291к или #/24/КС-291к(1) или #/24/КС-291к(2)
-    function parseUrlParams() {
-      const hash = window.location.hash;
-      
-      // Если есть hash, парсим его
-      // Формат: #/24/КС-291к или #/24/КС-291к(1) или #/24/КС-291к(2)
-      if (hash && hash.length > 1) {
-        // Убираем # в начале
-        let hashPath = hash.substring(1);
-        
-        // Декодируем URL-encoded символы (делаем это дважды на всякий случай)
-        try {
-          hashPath = decodeURIComponent(hashPath);
-          // Иногда бывает двойное кодирование
-          if (hashPath.includes('%')) {
-            hashPath = decodeURIComponent(hashPath);
-          }
-        } catch (e) {
-          console.error('Error decoding URL:', e);
-        }
-        
-        console.log('Parsed hash path:', hashPath);
-        
-        const pathParts = hashPath.split('/').filter(p => p.trim() !== '');
-        
-        if (pathParts.length >= 1) {
-          // Get the last part which should contain group name and optional style
-          let lastPart = pathParts[pathParts.length - 1].trim();
-          
-          // Parse group name and style from URL
-          // Format: "GroupName" or "GroupName(1)" or "GroupName(2)"
-          const styleMatch = lastPart.match(/\((\d)\)$/);
-          let groupName = lastPart;
-          let styleNum = 1; // Default style
-          
-          if (styleMatch) {
-            styleNum = parseInt(styleMatch[1], 10);
-            groupName = lastPart.replace(/\(\d\)$/, '').trim();
-          }
-          
-          // Also check if there's a second-to-last part (like "24" in "24/КС-291к")
-          if (pathParts.length >= 2) {
-            const secondLastPart = pathParts[pathParts.length - 2].trim();
-            groupName = secondLastPart + '/' + groupName;
-          }
-          
-          return { groupName, styleNum };
-        }
+      if (lesson.преподаватель) {
+        scheduleText += `Преподаватель: ${lesson.преподаватель}\n`;
       }
       
-      // Также проверяем query параметры для обратной совместимости
-      // Формат: ?group=24/КС-291к&style=1
-      const urlParams = new URLSearchParams(window.location.search);
-      const groupParam = urlParams.get('group');
-      const styleParam = urlParams.get('style');
-      
-      if (groupParam) {
-        return {
-          groupName: decodeURIComponent(groupParam).trim(),
-          styleNum: styleParam ? parseInt(styleParam, 10) : 1
-        };
+      if (lesson.кабинет) {
+        scheduleText += `Кабинет: ${lesson.кабинет}\n`;
       }
       
-      return null;
-    }
-
-    // Функция для поиска группы в базе с учетом разных вариантов написания
-    function findGroupInDatabase(searchName) {
-      if (!window.scheduleData) {
-        console.error('scheduleData not loaded');
-        return null;
-      }
-      
-      const groups = Object.keys(window.scheduleData);
-      console.log('Searching for group:', searchName);
-      console.log('Available groups (first 5):', groups.slice(0, 5));
-      
-      // Сначала ищем точное совпадение
-      if (window.scheduleData[searchName]) {
-        console.log('Found exact match:', searchName);
-        return searchName;
-      }
-      
-      // Нормализуем имя для поиска (убираем лишние пробелы)
-      const normalizedSearch = searchName.replace(/\s+/g, ' ').trim();
-      console.log('Trying normalized:', normalizedSearch);
-      
-      // Ищем с нормализованными пробелами
-      if (window.scheduleData[normalizedSearch]) {
-        console.log('Found with normalized spaces:', normalizedSearch);
-        return normalizedSearch;
-      }
-      
-      // Ищем без пробела после /
-      const noSpaceAfterSlash = searchName.replace('/\s+', '/');
-      console.log('Trying no space after slash:', noSpaceAfterSlash);
-      if (window.scheduleData[noSpaceAfterSlash]) {
-        console.log('Found without space after slash:', noSpaceAfterSlash);
-        return noSpaceAfterSlash;
-      }
-      
-      // Ищем с пробелом после /
-      const withSpaceAfterSlash = searchName.replace('/', '/ ');
-      console.log('Trying with space after slash:', withSpaceAfterSlash);
-      if (window.scheduleData[withSpaceAfterSlash]) {
-        console.log('Found with space after slash:', withSpaceAfterSlash);
-        return withSpaceAfterSlash;
-      }
-      
-      // Пробуем найти по частичному совпадению (без учета регистра и пробелов)
-      const searchNormalized = searchName.toLowerCase().replace(/\s+/g, '');
-      console.log('Trying normalized (no spaces, lowercase):', searchNormalized);
-      for (const group of groups) {
-        const groupNormalized = group.toLowerCase().replace(/\s+/g, '');
-        if (groupNormalized === searchNormalized) {
-          console.log('Found with normalized match:', group);
-          return group;
-        }
-      }
-      
-      // Пробуем найти только по названию группы без курса (например, "ИП-191к" найдет "25/ ИП-191к")
-      const searchWithoutCourse = searchName.replace(/^\d+\//, '').trim().toLowerCase();
-      console.log('Trying without course number:', searchWithoutCourse);
-      for (const group of groups) {
-        const groupWithoutCourse = group.replace(/^\d+\//, '').trim().toLowerCase();
-        if (groupWithoutCourse === searchWithoutCourse) {
-          console.log('Found by group name only:', group);
-          return group;
-        }
-      }
-      
-      // Пробуем найти по части названия (если ввели неполное имя)
-      console.log('Trying partial match...');
-      for (const group of groups) {
-        const groupLower = group.toLowerCase().replace(/\s+/g, '');
-        const searchLower = searchName.toLowerCase().replace(/\s+/g, '');
-        if (groupLower.includes(searchLower) || searchLower.includes(groupLower)) {
-          console.log('Found with partial match:', group);
-          return group;
-        }
-      }
-      
-      console.log('Group not found after all attempts');
-      return null;
-    }
-
-    async function autoGenerateFromUrl() {
-      const params = parseUrlParams();
-      if (!params) return false;
-      
-      const { groupName, styleNum } = params;
-      
-      // Load schedule data if not already loaded (используем глобальную window.scheduleData)
-      if (!window.scheduleData) {
-        try {
-          const response = await fetch('raspisanie.json');
-          if (!response.ok) {
-            console.error('Failed to load schedule data');
-            return false;
-          }
-          window.scheduleData = await response.json();
-        } catch (error) {
-          console.error('Error loading schedule:', error);
-          return false;
-        }
-      }
-      
-      // Ищем группу в базе с учетом разных вариантов написания
-      const foundGroupName = findGroupInDatabase(groupName);
-      
-      // Check if group exists
-      if (!foundGroupName) {
-        console.error('Group not found:', groupName);
-        console.log('Available groups:', Object.keys(window.scheduleData).slice(0, 10));
-        alert('Группа не найдена: ' + groupName);
-        return false;
-      }
-      
-      // Set the selected style globally
-      window.selectedStyle = styleNum === 2 ? 'style3' : 'style1';
-      // Также обновляем radio button
-      const radio = document.querySelector(`input[name="tableStyle"][value="${window.selectedStyle}"]`);
-      if (radio) radio.checked = true;
-      
-      // Format schedule text (используем найденное имя группы)
-      const formattedSchedule = formatScheduleForGroup(foundGroupName, window.scheduleData[foundGroupName]);
-      document.getElementById('inputText').value = formattedSchedule;
-      
-      // Show main interface
-      document.getElementById('styleSelector').classList.add('hidden');
-      document.getElementById('mainInput').classList.remove('hidden');
-      
-      // Generate image
-      await generateImage();
-      
-      // Auto-download the image
-      const outputImg = document.getElementById('outputImg');
-      if (outputImg && outputImg.src && outputImg.src.startsWith('data:image')) {
-        const link = document.createElement('a');
-        link.download = `schedule_${groupName.replace(/\//g, '_')}_style${styleNum}.png`;
-        link.href = outputImg.src;
-        link.click();
-      }
-      
-      return true;
-    }
-
-    // Override formatScheduleForGroup to use the one from script.js
-    function formatScheduleForGroup(groupName, groupData) {
-      const daysInRussian = ["ПОНЕДЕЛЬНИК", "ВТОРНИК", "СРЕДА", "ЧЕТВЕРГ", "ПЯТНИЦА", "СУББОТА"];
-      const dayOrder = { "ПОНЕДЕЛЬНИК": 1, "ВТОРНИК": 2, "СРЕДА": 3, "ЧЕТВЕРГ": 4, "ПЯТНИЦА": 5, "СУББОТА": 6 };
-      const lessonEmojiMap = {
-        '1': '1️⃣', '2': '2️⃣', '3': '3️⃣', '4': '4️⃣', '5': '5️⃣',
-        '6': '6️⃣', '7': '7️⃣', '8': '8️⃣', '9': '9️⃣'
-      };
-      
-      let scheduleText = `📚 Расписание для группы ${groupName}\n`;
-      scheduleText += `Сверяйте расписание с гугл таблицей! Здесь возможны ошибки. В случае неточностей, сообщите нам!\n\n\n`;
-      
-      // Сортируем дни недели в правильном порядке
-      const sortedDays = Object.keys(groupData).sort((a, b) => dayOrder[a] - dayOrder[b]);
-      
-      sortedDays.forEach(day => {
-        scheduleText += `═══════════════\n`;
-        scheduleText += `${day}\n`;
-        scheduleText += `═══════════════\n`;
-        
-        const daySchedule = groupData[day];
-        const sortedLessons = Object.keys(daySchedule).sort((a, b) => parseInt(a) - parseInt(b));
-        
-        sortedLessons.forEach(lessonNum => {
-          const lesson = daySchedule[lessonNum];
-          scheduleText += `${lessonEmojiMap[lessonNum]} ${lesson.предмет}\n`;
-          
-          if (lesson.преподаватель) {
-            scheduleText += `Преподаватель: ${lesson.преподаватель}\n`;
-          }
-          
-          if (lesson.кабинет) {
-            scheduleText += `Кабинет: ${lesson.кабинет}\n`;
-          }
-          
-          scheduleText += `\n`;
-        });
-      });
-      
-      return scheduleText;
-    }
-
-    // Функция для генерации ссылки на расписание
-    function generateShareableLink(groupName, styleNum) {
-      const baseUrl = window.location.origin + window.location.pathname;
-      // Кодируем группу, заменяя пробелы на %20 для корректности URL
-      const encodedGroup = encodeURIComponent(groupName);
-      if (styleNum && styleNum !== 1) {
-        return `${baseUrl}#/${encodedGroup}(${styleNum})`;
-      }
-      return `${baseUrl}#/${encodedGroup}`;
-    }
-
-    // Обработчик изменения hash
-    window.addEventListener('hashchange', async function() {
-      await autoGenerateFromUrl();
+      scheduleText += `\n`;
     });
+  });
+  
+  return scheduleText;
+}
 
-    // Обновляем выбор стилей
-    document.addEventListener('DOMContentLoaded', async function() {
-      // Try auto-generation from URL first
-      const autoGenerated = await autoGenerateFromUrl();
-      
-      // If auto-generation happened, skip the normal flow
-      if (autoGenerated) {
-        return;
+// Для интеграции с основной логикой генерации
+function getSelectedStyle() {
+  return window.selectedStyle;
+}
+
+function drawAllPreviews() {
+  // Рисуем только для style1 и style3
+  drawPreviewTable(document.getElementById('preview1'), 'style1');
+  drawPreviewTable(document.getElementById('preview3'), 'style3');
+}
+
+function drawLightboxPreview(style) {
+  drawPreviewTable(document.getElementById('lightboxCanvas'), style, true);
+}
+
+function drawPreviewTable(canvas, style, isLarge) {
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const w = canvas.width, h = canvas.height;
+  ctx.clearRect(0,0,w,h);
+  
+  // Стили
+  let bg, border, text, accent, shadow;
+  if (style === 'style1') { // Apple Light
+    bg = '#f8f9fa'; border = '#e5e5ea'; text = '#222'; accent = '#007AFF'; shadow = 'rgba(0,0,0,0.07)';
+  } else if (style === 'style3') { // Apple Glass
+    bg = 'rgba(255,255,255,0.7)'; border = '#d1d1d6'; text = '#222'; accent = '#5AC8FA'; shadow = 'rgba(90,200,250,0.10)';
+  }
+  
+  // Фон
+  ctx.save();
+  ctx.beginPath();
+  ctx.moveTo(12, 0); ctx.lineTo(w-12, 0); ctx.quadraticCurveTo(w,0,w,12);
+  ctx.lineTo(w, h-12); ctx.quadraticCurveTo(w,h,w-12,h);
+  ctx.lineTo(12,h); ctx.quadraticCurveTo(0,h,0,h-12);
+  ctx.lineTo(0,12); ctx.quadraticCurveTo(0,0,12,0);
+  ctx.closePath();
+  ctx.fillStyle = bg;
+  ctx.shadowColor = shadow;
+  ctx.shadowBlur = 8;
+  ctx.fill();
+  ctx.shadowBlur = 0;
+  ctx.strokeStyle = border;
+  ctx.lineWidth = 2;
+  ctx.stroke();
+  ctx.restore();
+  
+  // Заголовок
+  ctx.font = (isLarge ? 'bold 22px' : 'bold 13px') + " -apple-system, 'Segoe UI', Arial";
+  ctx.fillStyle = accent;
+  ctx.textAlign = 'center';
+  ctx.fillText('Суббота', w/2, (isLarge ? 38 : 22));
+  
+  // Ячейки
+  ctx.font = (isLarge ? '16px' : '10px') + " -apple-system, 'Segoe UI', Arial";
+  ctx.fillStyle = text;
+  ctx.textAlign = 'left';
+  ctx.fillText('1. Физика', 18, (isLarge ? 70 : 38));
+  ctx.fillText('2. Математика', 18, (isLarge ? 100 : 54));
+  ctx.fillText('3. Английский', 18, (isLarge ? 130 : 70));
+  
+  // Линии
+  ctx.strokeStyle = border;
+  ctx.lineWidth = 1;
+  for (let i = 1; i < 4; i++) {
+    ctx.beginPath();
+    ctx.moveTo(12, (isLarge ? 38+30*i : 22+16*i));
+    ctx.lineTo(w-12, (isLarge ? 38+30*i : 22+16*i));
+    ctx.stroke();
+  }
+}
+
+async function generateImage() {
+  const textArea = document.getElementById("inputText");
+  const text = textArea.value;
+  if (!text.trim()) {
+    alert("Пожалуйста, вставьте текст расписания.");
+    return;
+  }
+  
+  const scheduleData = parseScheduleText(text);
+  const daysInSchedule = Object.keys(scheduleData);
+  if (daysInSchedule.length === 0) {
+      alert("Не удалось найти расписание в тексте. Убедитесь, что дни недели написаны заглавными буквами (например, ПОНЕДЕЛЬНИК).");
+      return;
+  }
+  
+  let callScheduleData = null;
+  try {
+    const response = await fetch('ras.json');
+    if (!response.ok) {
+      throw new Error('Network response was not ok');
+    }
+    callScheduleData = await response.json();
+  } catch (error) {
+    console.error('Failed to fetch call schedule:', error);
+    alert('Не удалось загрузить расписание звонков. Проверьте, что файл ras.json доступен.');
+    return;
+  }
+  
+  const callScheduleColWidth = 300;
+  const callScheduleHeight = estimateCallScheduleHeight(callScheduleData, callScheduleColWidth);
+  const headerHeight = 70;
+  const lessonRowHeight =  (1050 - headerHeight) / 6;
+  const minTableHeight = headerHeight + 6 * lessonRowHeight;
+  const canvasHeight = Math.max(minTableHeight, callScheduleHeight);
+  const canvas = document.createElement("canvas");
+  const ctx = canvas.getContext("2d");
+  const exportScale = 3; // 3x for high-resolution export
+  
+  let style = (typeof window.getSelectedStyle === 'function') ? window.getSelectedStyle() : 
+              (typeof getSelectedStyle === 'function') ? getSelectedStyle() : 'style1';
+  if (style === 'style3') {
+    try {
+      drawScheduleGlassStyle(ctx, canvas, scheduleData, callScheduleData, exportScale);
+    } catch (e) {
+      alert('Ошибка генерации (style3): ' + e.message);
+      return;
+    }
+  } else {
+    drawScheduleGrid(ctx, canvas, scheduleData, callScheduleData, canvasHeight, style, exportScale);
+  }
+  
+  const imgURL = canvas.toDataURL("image/png");
+  document.getElementById("outputImg").src = imgURL;
+  const downloadButton = document.getElementById("downloadButton");
+  downloadButton.onclick = () => {
+      const link = document.createElement('a');
+      link.download = 'schedule.png';
+      link.href = imgURL;
+      link.click();
+  };
+  
+  document.getElementById("outputImg").onclick = function() {
+    openLightbox(imgURL);
+  };
+}
+
+// Новый стиль glassmorphism для style3
+function drawScheduleGlassStyle(ctx, canvas, scheduleData, callScheduleData, exportScale = 1) {
+  // Проверки на существование всех нужных данных
+  if (!callScheduleData || !callScheduleData.weekday_schedule || !callScheduleData.weekday_lunch || !callScheduleData.saturday_schedule || !callScheduleData.saturday_lunch) {
+    alert('Ошибка: не удалось загрузить расписание звонков. Проверьте файл ras.json.');
+    return;
+  }
+  
+  // Размеры и стили
+  const padding = 48;
+  const blockRadius = 40;
+  const blockShadow = 'rgba(0,0,0,0.10)';
+  const blockBg = 'rgba(255,255,255,0.82)';
+  const borderColor = '#e5e5ea';
+  const accent = '#007AFF';
+  const textColor = '#222';
+  const days = Object.keys(scheduleData);
+  const lessonsCount = 6;
+  
+  // Динамическая ширина колонки
+  let minColW = 130;
+  let maxDayLen = Math.max(...days.map(d => d.length));
+  if (maxDayLen > 8) minColW += (maxDayLen-8)*10;
+  
+  // Если длинные предметы, увеличиваем ширину
+  let maxSubjectLen = 0;
+  let maxCellLines = 1;
+  for (const day of days) {
+    for (let l=1;l<=6;l++) {
+      const lesson = scheduleData[day][String(l)];
+      if (lesson && lesson.subject) {
+        maxSubjectLen = Math.max(maxSubjectLen, lesson.subject.join(' ').length);
+        // Оценка количества строк в ячейке
+        let lines = Math.ceil(lesson.subject.join(' ').length / 18);
+        if (lesson.teacher) lines++;
+        if (lesson.cabinet) lines++;
+        maxCellLines = Math.max(maxCellLines, lines);
       }
-      
-      const styleOptions = document.querySelectorAll('.style-option');
-      styleOptions.forEach(option => {
-        const radio = option.querySelector('input[type="radio"]');
-        const preview = option.querySelector('.style-preview');
-        
-        option.addEventListener('click', function() {
-          document.querySelectorAll('.style-preview').forEach(p => p.classList.remove('selected'));
-          preview.classList.add('selected');
-          radio.checked = true;
-        });
+    }
+  }
+  if (maxSubjectLen > 18) minColW += (maxSubjectLen-18)*7;
+  
+  // Размеры блоков
+  const colW = minColW;
+  const baseRowH = 78;
+  const rowH = baseRowH + (maxCellLines-1)*22;
+  const tableW = 70 + days.length * colW;
+  const tableH = 70 + lessonsCount * rowH;
+  
+  // Два отдельных блока звонков
+  const callsW = 390;
+  const callsGap = 32;
+  const callsH1 = getCallsBlockHeight(callScheduleData.weekday_schedule, callScheduleData.weekday_lunch);
+  const callsH2 = getCallsBlockHeight(callScheduleData.saturday_schedule, callScheduleData.saturday_lunch);
+  const gap = 80;
+  
+  // Высота canvas — по максимальному из всех блоков
+  const logicalWidth = tableW + callsW + gap + padding*2;
+  const logicalHeight = Math.max(tableH, callsH1+callsH2+callsGap) + padding*2;
+  canvas.width = Math.round(logicalWidth * exportScale);
+  canvas.height = Math.round(logicalHeight * exportScale);
+  ctx.setTransform(exportScale, 0, 0, exportScale, 0, 0);
+  ctx.clearRect(0,0,logicalWidth,logicalHeight);
+  
+  // Фон
+  let grad = ctx.createLinearGradient(0,0,canvas.width,canvas.height);
+  grad.addColorStop(0, '#f3f6fa');
+  grad.addColorStop(1, '#e9eef3');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0,0,canvas.width,canvas.height);
+  
+  // Таблица расписания
+  drawGlassBlock(ctx, padding, padding, tableW, tableH, blockRadius, blockBg, blockShadow, borderColor);
+  drawGlassScheduleTable(ctx, padding, padding, tableW, tableH, scheduleData, accent, textColor, colW, baseRowH);
+  
+  // Блок звонков ПН-ПТ
+  drawGlassBlock(ctx, padding+tableW+gap, padding, callsW, callsH1, blockRadius, blockBg, blockShadow, borderColor);
+  drawGlassCallsBlock(ctx, padding+tableW+gap, padding, callsW, callsH1, callScheduleData.weekday_schedule, callScheduleData.weekday_lunch, accent, textColor);
+  
+  // Блок звонков Сб
+  drawGlassBlock(ctx, padding+tableW+gap, padding+callsH1+callsGap, callsW, callsH2, blockRadius, blockBg, blockShadow, borderColor);
+  drawGlassCallsBlock(ctx, padding+tableW+gap, padding+callsH1+callsGap, callsW, callsH2, callScheduleData.saturday_schedule, callScheduleData.saturday_lunch, accent, textColor);
+}
+
+function drawGlassBlock(ctx, x, y, w, h, r, bg, shadow, border) {
+  ctx.save();
+  ctx.beginPath();
+  ctx.moveTo(x+r, y);
+  ctx.lineTo(x+w-r, y);
+  ctx.quadraticCurveTo(x+w, y, x+w, y+r);
+  ctx.lineTo(x+w, y+h-r);
+  ctx.quadraticCurveTo(x+w, y+h, x+w-r, y+h);
+  ctx.lineTo(x+r, y+h);
+  ctx.quadraticCurveTo(x, y+h, x, y+h-r);
+  ctx.lineTo(x, y+r);
+  ctx.quadraticCurveTo(x, y, x+r, y);
+  ctx.closePath();
+  ctx.fillStyle = bg;
+  ctx.shadowColor = shadow;
+  ctx.shadowBlur = 24;
+  ctx.fill();
+  ctx.shadowBlur = 0;
+  ctx.strokeStyle = border;
+  ctx.lineWidth = 2;
+  ctx.stroke();
+  ctx.restore();
+}
+
+function drawGlassScheduleTable(ctx, x, y, w, h, scheduleData, accent, textColor, colW, baseRowH) {
+  const days = Object.keys(scheduleData);
+  ctx.font = 'bold 26px -apple-system,Segoe UI,Arial';
+  ctx.fillStyle = textColor;
+  ctx.textAlign = 'center';
+  
+  // --- Вычисляем высоту каждой строки ---
+  let rowHeights = [];
+  for (let l = 1; l <= 6; l++) {
+    let maxLines = 1;
+    for (let d = 0; d < days.length; d++) {
+      const day = days[d];
+      const lesson = scheduleData[day][String(l)];
+      if (lesson) {
+        let subjectLines = wrapTextLines(ctx, lesson.subject ? lesson.subject.join(' ') : '', colW-24, 22).length;
+        let teacherLines = lesson.teacher ? wrapTextLines(ctx, lesson.teacher, colW-24, 20).length : 0;
+        let cabinetLine = lesson.cabinet ? 1 : 0;
+        let totalLines = subjectLines + teacherLines + cabinetLine;
+        maxLines = Math.max(maxLines, totalLines);
+      }
+    }
+    rowHeights[l-1] = baseRowH + (maxLines-1)*22;
+  }
+  
+  // --- Заголовки дней ---
+  let headerH = 70;
+  days.forEach((day, i) => {
+    ctx.font = 'bold 26px -apple-system,Segoe UI,Arial';
+    ctx.fillText(day.charAt(0)+day.slice(1).toLowerCase(), x+40+colW*i+colW/2, y+headerH/2);
+  });
+  
+  // --- Римские номера ---
+  ctx.font = 'bold 22px -apple-system,Segoe UI,Arial';
+  let yCursor = y + headerH;
+  for(let i=0;i<6;i++) {
+    let rowH = rowHeights[i];
+    ctx.fillText(['I','II','III','IV','V','VI'][i], x+28, yCursor + rowH/2);
+    yCursor += rowH;
+  }
+  
+  // --- Ячейки ---
+  yCursor = y + headerH;
+  ctx.font = '18px -apple-system,Segoe UI,Arial';
+  ctx.textAlign = 'center';
+  for(let l=1;l<=6;l++) {
+    let rowH = rowHeights[l-1];
+    for(let d=0;d<days.length;d++) {
+      const day = days[d];
+      const lesson = scheduleData[day][String(l)];
+      if (!lesson) continue;
+      let cellX = x+40+colW*d;
+      let cellY = yCursor;
+      let cellW = colW;
+      let cellH = rowH;
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(cellX+6, cellY+6, cellW-12, cellH-12);
+      ctx.clip();
+      ctx.fillStyle = textColor;
+      let y0 = cellY+28+6;
+      let subjectLines = wrapTextLines(ctx, lesson.subject ? lesson.subject.join(' ') : '', cellW-24, 22, 20);
+      let teacherLines = lesson.teacher ? wrapTextLines(ctx, lesson.teacher, cellW-24, 20, 20) : [];
+      let cabinetLine = lesson.cabinet ? [lesson.cabinet] : [];
+      let startY = y0;
+      ctx.font = 'bold 19px -apple-system,Segoe UI,Arial';
+      subjectLines.forEach((line, idx) => {
+        ctx.fillText(line, cellX+cellW/2, startY + idx*22);
       });
-      
-      // Устанавливаем первый стиль как выбранный по умолчанию
-      document.querySelector('.style-preview.style1').classList.add('selected');
-      
-      // Обработчики кнопок
-      document.getElementById('chooseStyleBtn').onclick = function() {
-        document.getElementById('styleSelector').classList.add('hidden');
-        document.getElementById('mainInput').classList.remove('hidden');
-      };
-      
-      document.getElementById('backToStyleBtn').onclick = function() {
-        document.getElementById('mainInput').classList.add('hidden');
-        document.getElementById('styleSelector').classList.remove('hidden');
-      };
+      startY += subjectLines.length*22;
+      ctx.font = '17px -apple-system,Segoe UI,Arial';
+      teacherLines.forEach((line, idx) => {
+        ctx.fillText(line, cellX+cellW/2, startY + idx*20);
+      });
+      startY += teacherLines.length*20;
+      cabinetLine.forEach((line, idx) => {
+        ctx.fillText(line, cellX+cellW/2, startY + idx*20);
+      });
+      ctx.restore();
+    }
+    yCursor += rowH;
+  }
+  
+  // --- Сетка ---
+  ctx.strokeStyle = '#e5e5ea';
+  ctx.lineWidth = 1.2;
+  // Горизонтальные линии
+  yCursor = y + headerH;
+  ctx.beginPath();
+  ctx.moveTo(x+40, y);
+  ctx.lineTo(x+40+colW*days.length, y);
+  ctx.stroke();
+  for(let i=0;i<=6;i++) {
+    let yLine = y + headerH + rowHeights.slice(0,i).reduce((a,b)=>a+b,0);
+    ctx.beginPath();
+    ctx.moveTo(x+40, yLine);
+    ctx.lineTo(x+40+colW*days.length, yLine);
+    ctx.stroke();
+  }
+  // Вертикальные линии
+  for(let d=0;d<=days.length;d++) {
+    ctx.beginPath();
+    ctx.moveTo(x+40+colW*d, y);
+    ctx.lineTo(x+40+colW*d, y+headerH+rowHeights.reduce((a,b)=>a+b,0));
+    ctx.stroke();
+  }
+  
+  // --- Белый фон до 6 строк ---
+  let minTableH = headerH + baseRowH*6;
+  let realTableH = headerH + rowHeights.reduce((a,b)=>a+b,0);
+  if (realTableH < minTableH) {
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(x+40, y+realTableH, colW*days.length, minTableH-realTableH);
+    ctx.fillStyle = '#fff';
+    ctx.fill();
+    ctx.restore();
+  }
+}
+
+function drawGlassCallsBlock(ctx, x, y, w, h, scheduleData, lunchData, accent, textColor) {
+  ctx.font = 'bold 23px -apple-system,Segoe UI,Arial';
+  ctx.fillStyle = accent;
+  ctx.textAlign = 'left';
+  ctx.fillText(scheduleData.icon+' '+scheduleData.title, x+28, y+44);
+  ctx.font = '18px -apple-system,Segoe UI,Arial';
+  ctx.fillStyle = textColor;
+  let y0 = y+70;
+  scheduleData.pairs.forEach((pair,i)=>{
+    ctx.font = 'bold 17px -apple-system,Segoe UI,Arial';
+    ctx.fillStyle = textColor;
+    ctx.fillText(pair.name, x+28, y0);
+    ctx.font = '17px -apple-system,Segoe UI,Arial';
+    pair.times.forEach((t,j)=>{
+      ctx.fillText(t, x+140, y0+22*j);
     });
-  </script>
-</body>
-</html>
+    y0+=62;
+  });
+  y0+=18;
+  // Обеденный перерыв ПН-ПТ
+  ctx.font = 'bold 18px -apple-system,Segoe UI,Arial';
+  ctx.fillStyle = accent;
+  ctx.fillText(lunchData.icon+' '+lunchData.title, x+28, y0);
+  ctx.font = '17px -apple-system,Segoe UI,Arial';
+  ctx.fillStyle = textColor;
+  lunchData.times.forEach((t,j)=>{
+    ctx.fillText(t, x+28, y0+22*(j+1));
+  });
+}
+
+function getCallsBlockHeight(schedule, lunch) {
+  // 44 на заголовок, 62 на каждую пару, 18 на отступ, 22 на каждую строку времени обеда, 32 на отступ после пар
+  let h = 44 + (schedule.pairs.length * 62) + 18 + (lunch.times.length * 22) + 32;
+  return h;
+}
+
+function wrapTextLines(ctx, text, maxWidth, lineHeight, maxCharsPerLine) {
+  if (!text) return [];
+  const words = text.split(' ');
+  let line = '';
+  let lines = [];
+  const pushLine = (l) => { if (l && l.trim().length) lines.push(l.trim()); };
+  for (let n = 0; n < words.length; n++) {
+    let word = words[n];
+    // If maxCharsPerLine is set, pre-wrap by character count at spaces
+    if (maxCharsPerLine && (line + word).trim().length > maxCharsPerLine && line.trim().length > 0) {
+      pushLine(line);
+      line = '';
+    }
+    // If a single word is too long, hard-wrap it into chunks
+    if (ctx.measureText(word).width > maxWidth) {
+      // flush current line first
+      pushLine(line);
+      line = '';
+      // break the long word into smaller chunks that fit
+      let chunk = '';
+      for (let i = 0; i < word.length; i++) {
+        const tentative = chunk + word[i];
+        if (ctx.measureText(tentative).width > maxWidth && chunk.length > 0) {
+          pushLine(chunk);
+          chunk = word[i];
+        } else {
+          chunk = tentative;
+        }
+      }
+      pushLine(chunk);
+      continue;
+    }
+    const testLine = line + word + ' ';
+    const testWidth = ctx.measureText(testLine).width;
+    if (testWidth > maxWidth && line) {
+      pushLine(line);
+      line = word + ' ';
+    } else {
+      line = testLine;
+    }
+  }
+  pushLine(line);
+  return lines;
+}
