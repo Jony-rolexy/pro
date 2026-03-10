@@ -1133,13 +1133,13 @@
       // Если есть hash, парсим его
       // Формат: #/24/КС-291к или #/24/КС-291к(1) или #/24/КС-291к(2)
       if (hash && hash.length > 1) {
-        // Убираем # в начале
-        const hashPath = hash.substring(1);
+        // Убираем # в начале и декодируем URL-encoded символы
+        const hashPath = decodeURIComponent(hash.substring(1));
         const pathParts = hashPath.split('/').filter(p => p.trim() !== '');
         
         if (pathParts.length >= 1) {
           // Get the last part which should contain group name and optional style
-          const lastPart = pathParts[pathParts.length - 1];
+          let lastPart = pathParts[pathParts.length - 1].trim();
           
           // Parse group name and style from URL
           // Format: "GroupName" or "GroupName(1)" or "GroupName(2)"
@@ -1149,12 +1149,12 @@
           
           if (styleMatch) {
             styleNum = parseInt(styleMatch[1], 10);
-            groupName = lastPart.replace(/\(\d\)$/, '');
+            groupName = lastPart.replace(/\(\d\)$/, '').trim();
           }
           
           // Also check if there's a second-to-last part (like "24" in "24/КС-291к")
           if (pathParts.length >= 2) {
-            const secondLastPart = pathParts[pathParts.length - 2];
+            const secondLastPart = pathParts[pathParts.length - 2].trim();
             groupName = secondLastPart + '/' + groupName;
           }
           
@@ -1170,9 +1170,52 @@
       
       if (groupParam) {
         return {
-          groupName: groupParam,
+          groupName: decodeURIComponent(groupParam).trim(),
           styleNum: styleParam ? parseInt(styleParam, 10) : 1
         };
+      }
+      
+      return null;
+    }
+
+    // Функция для поиска группы в базе с учетом разных вариантов написания
+    function findGroupInDatabase(searchName) {
+      if (!window.scheduleData) return null;
+      
+      const groups = Object.keys(window.scheduleData);
+      
+      // Сначала ищем точное совпадение
+      if (window.scheduleData[searchName]) {
+        return searchName;
+      }
+      
+      // Нормализуем имя для поиска (убираем лишние пробелы)
+      const normalizedSearch = searchName.replace(/\s+/g, ' ').trim();
+      
+      // Ищем с нормализованными пробелами
+      if (window.scheduleData[normalizedSearch]) {
+        return normalizedSearch;
+      }
+      
+      // Ищем без пробела после /
+      const noSpaceAfterSlash = searchName.replace('/\s+', '/');
+      if (window.scheduleData[noSpaceAfterSlash]) {
+        return noSpaceAfterSlash;
+      }
+      
+      // Ищем с пробелом после /
+      const withSpaceAfterSlash = searchName.replace('/', '/ ');
+      if (window.scheduleData[withSpaceAfterSlash]) {
+        return withSpaceAfterSlash;
+      }
+      
+      // Пробуем найти по частичному совпадению (без учета регистра и пробелов)
+      const searchNormalized = searchName.toLowerCase().replace(/\s+/g, '');
+      for (const group of groups) {
+        const groupNormalized = group.toLowerCase().replace(/\s+/g, '');
+        if (groupNormalized === searchNormalized) {
+          return group;
+        }
       }
       
       return null;
@@ -1199,9 +1242,13 @@
         }
       }
       
+      // Ищем группу в базе с учетом разных вариантов написания
+      const foundGroupName = findGroupInDatabase(groupName);
+      
       // Check if group exists
-      if (!window.scheduleData[groupName]) {
+      if (!foundGroupName) {
         console.error('Group not found:', groupName);
+        console.log('Available groups:', Object.keys(window.scheduleData).slice(0, 10));
         alert('Группа не найдена: ' + groupName);
         return false;
       }
@@ -1212,8 +1259,8 @@
       const radio = document.querySelector(`input[name="tableStyle"][value="${window.selectedStyle}"]`);
       if (radio) radio.checked = true;
       
-      // Format schedule text
-      const formattedSchedule = formatScheduleForGroup(groupName, window.scheduleData[groupName]);
+      // Format schedule text (используем найденное имя группы)
+      const formattedSchedule = formatScheduleForGroup(foundGroupName, window.scheduleData[foundGroupName]);
       document.getElementById('inputText').value = formattedSchedule;
       
       // Show main interface
@@ -1280,6 +1327,7 @@
     // Функция для генерации ссылки на расписание
     function generateShareableLink(groupName, styleNum) {
       const baseUrl = window.location.origin + window.location.pathname;
+      // Кодируем группу, заменяя пробелы на %20 для корректности URL
       const encodedGroup = encodeURIComponent(groupName);
       if (styleNum && styleNum !== 1) {
         return `${baseUrl}#/${encodedGroup}(${styleNum})`;
