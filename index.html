@@ -1107,34 +1107,54 @@
     };
 
     // URL-based auto-generation and download
+    // Используем hash-роутинг для совместимости с GitHub Pages
+    // Формат: #/24/КС-291к или #/24/КС-291к(1) или #/24/КС-291к(2)
     function parseUrlParams() {
-      const path = window.location.pathname;
-      const pathParts = path.split('/').filter(p => p.trim() !== '');
+      const hash = window.location.hash;
       
-      // Check if URL has group info (at least 2 parts: some prefix and group name)
-      // Expected format: /pro/24/КС-291к or /pro/24/КС-291к(1) or /pro/24/КС-291к(2)
-      if (pathParts.length >= 2) {
-        // Get the last part which should contain group name and optional style
-        const lastPart = pathParts[pathParts.length - 1];
+      // Если есть hash, парсим его
+      // Формат: #/24/КС-291к или #/24/КС-291к(1) или #/24/КС-291к(2)
+      if (hash && hash.length > 1) {
+        // Убираем # в начале
+        const hashPath = hash.substring(1);
+        const pathParts = hashPath.split('/').filter(p => p.trim() !== '');
         
-        // Parse group name and style from URL
-        // Format: "GroupName" or "GroupName(1)" or "GroupName(2)"
-        const styleMatch = lastPart.match(/\((\d)\)$/);
-        let groupName = lastPart;
-        let styleNum = 1; // Default style
-        
-        if (styleMatch) {
-          styleNum = parseInt(styleMatch[1], 10);
-          groupName = lastPart.replace(/\(\d\)$/, '');
+        if (pathParts.length >= 1) {
+          // Get the last part which should contain group name and optional style
+          const lastPart = pathParts[pathParts.length - 1];
+          
+          // Parse group name and style from URL
+          // Format: "GroupName" or "GroupName(1)" or "GroupName(2)"
+          const styleMatch = lastPart.match(/\((\d)\)$/);
+          let groupName = lastPart;
+          let styleNum = 1; // Default style
+          
+          if (styleMatch) {
+            styleNum = parseInt(styleMatch[1], 10);
+            groupName = lastPart.replace(/\(\d\)$/, '');
+          }
+          
+          // Also check if there's a second-to-last part (like "24" in "24/КС-291к")
+          if (pathParts.length >= 2) {
+            const secondLastPart = pathParts[pathParts.length - 2];
+            groupName = secondLastPart + '/' + groupName;
+          }
+          
+          return { groupName, styleNum };
         }
-        
-        // Also check if there's a second-to-last part (like "24" in "24/КС-291к")
-        if (pathParts.length >= 3) {
-          const secondLastPart = pathParts[pathParts.length - 2];
-          groupName = secondLastPart + '/' + groupName;
-        }
-        
-        return { groupName, styleNum };
+      }
+      
+      // Также проверяем query параметры для обратной совместимости
+      // Формат: ?group=24/КС-291к&style=1
+      const urlParams = new URLSearchParams(window.location.search);
+      const groupParam = urlParams.get('group');
+      const styleParam = urlParams.get('style');
+      
+      if (groupParam) {
+        return {
+          groupName: groupParam,
+          styleNum: styleParam ? parseInt(styleParam, 10) : 1
+        };
       }
       
       return null;
@@ -1234,6 +1254,21 @@
       
       return scheduleText;
     }
+
+    // Функция для генерации ссылки на расписание
+    function generateShareableLink(groupName, styleNum) {
+      const baseUrl = window.location.origin + window.location.pathname;
+      const encodedGroup = encodeURIComponent(groupName);
+      if (styleNum && styleNum !== 1) {
+        return `${baseUrl}#/${encodedGroup}(${styleNum})`;
+      }
+      return `${baseUrl}#/${encodedGroup}`;
+    }
+
+    // Обработчик изменения hash
+    window.addEventListener('hashchange', async function() {
+      await autoGenerateFromUrl();
+    });
 
     // Обновляем выбор стилей
     document.addEventListener('DOMContentLoaded', async function() {
