@@ -1133,8 +1133,22 @@
       // Если есть hash, парсим его
       // Формат: #/24/КС-291к или #/24/КС-291к(1) или #/24/КС-291к(2)
       if (hash && hash.length > 1) {
-        // Убираем # в начале и декодируем URL-encoded символы
-        const hashPath = decodeURIComponent(hash.substring(1));
+        // Убираем # в начале
+        let hashPath = hash.substring(1);
+        
+        // Декодируем URL-encoded символы (делаем это дважды на всякий случай)
+        try {
+          hashPath = decodeURIComponent(hashPath);
+          // Иногда бывает двойное кодирование
+          if (hashPath.includes('%')) {
+            hashPath = decodeURIComponent(hashPath);
+          }
+        } catch (e) {
+          console.error('Error decoding URL:', e);
+        }
+        
+        console.log('Parsed hash path:', hashPath);
+        
         const pathParts = hashPath.split('/').filter(p => p.trim() !== '');
         
         if (pathParts.length >= 1) {
@@ -1180,44 +1194,59 @@
 
     // Функция для поиска группы в базе с учетом разных вариантов написания
     function findGroupInDatabase(searchName) {
-      if (!window.scheduleData) return null;
+      if (!window.scheduleData) {
+        console.error('scheduleData not loaded');
+        return null;
+      }
       
       const groups = Object.keys(window.scheduleData);
+      console.log('Searching for group:', searchName);
+      console.log('Available groups (first 5):', groups.slice(0, 5));
       
       // Сначала ищем точное совпадение
       if (window.scheduleData[searchName]) {
+        console.log('Found exact match:', searchName);
         return searchName;
       }
       
       // Нормализуем имя для поиска (убираем лишние пробелы)
       const normalizedSearch = searchName.replace(/\s+/g, ' ').trim();
+      console.log('Trying normalized:', normalizedSearch);
       
       // Ищем с нормализованными пробелами
       if (window.scheduleData[normalizedSearch]) {
+        console.log('Found with normalized spaces:', normalizedSearch);
         return normalizedSearch;
       }
       
       // Ищем без пробела после /
       const noSpaceAfterSlash = searchName.replace('/\s+', '/');
+      console.log('Trying no space after slash:', noSpaceAfterSlash);
       if (window.scheduleData[noSpaceAfterSlash]) {
+        console.log('Found without space after slash:', noSpaceAfterSlash);
         return noSpaceAfterSlash;
       }
       
       // Ищем с пробелом после /
       const withSpaceAfterSlash = searchName.replace('/', '/ ');
+      console.log('Trying with space after slash:', withSpaceAfterSlash);
       if (window.scheduleData[withSpaceAfterSlash]) {
+        console.log('Found with space after slash:', withSpaceAfterSlash);
         return withSpaceAfterSlash;
       }
       
       // Пробуем найти по частичному совпадению (без учета регистра и пробелов)
       const searchNormalized = searchName.toLowerCase().replace(/\s+/g, '');
+      console.log('Trying normalized (no spaces, lowercase):', searchNormalized);
       for (const group of groups) {
         const groupNormalized = group.toLowerCase().replace(/\s+/g, '');
         if (groupNormalized === searchNormalized) {
+          console.log('Found with normalized match:', group);
           return group;
         }
       }
       
+      console.log('Group not found after all attempts');
       return null;
     }
 
