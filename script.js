@@ -1,5 +1,10 @@
-let selectedStyle = 'style1';
-let scheduleData = null; // Глобальная переменная для хранения данных расписания
+// Глобальные переменные для доступа из всех скриптов
+if (typeof window.selectedStyle === 'undefined') {
+  window.selectedStyle = 'style1';
+}
+if (typeof window.scheduleData === 'undefined') {
+  window.scheduleData = null;
+}
 
 window.addEventListener('DOMContentLoaded', function() {
   // Мини-превью таблиц (только для style1 и style3)
@@ -25,7 +30,7 @@ window.addEventListener('DOMContentLoaded', function() {
   // Кнопка выбрать стиль
   document.getElementById('chooseStyleBtn').onclick = function() {
     const checked = document.querySelector('input[name="tableStyle"]:checked');
-    selectedStyle = checked ? checked.value : 'style1';
+    window.selectedStyle = checked ? checked.value : 'style1';
     document.getElementById('styleSelector').classList.add('hidden');
     document.getElementById('mainInput').classList.remove('hidden');
   };
@@ -61,13 +66,13 @@ window.openGroupModal = async function() {
   modal.classList.add('show');
   groupList.innerHTML = '<div style="text-align: center; padding: 20px; color: #8e8e93;">Загрузка групп...</div>';
   
-  if (!scheduleData) {
+  if (!window.scheduleData) {
     try {
       const response = await fetch('raspisanie.json');
       if (!response.ok) {
         throw new Error('Не удалось загрузить файл расписания');
       }
-      scheduleData = await response.json();
+      window.scheduleData = await response.json();
     } catch (error) {
       groupList.innerHTML = '<div style="text-align: center; padding: 20px; color: #ff3b30;">Ошибка загрузки расписания: ' + error.message + '</div>';
       return;
@@ -101,12 +106,12 @@ window.filterGroups = function() {
 };
 
 window.selectGroup = function(groupName) {
-  if (!scheduleData || !scheduleData[groupName]) {
+  if (!window.scheduleData || !window.scheduleData[groupName]) {
     alert('Данные для группы не найдены');
     return;
   }
   
-  const formattedSchedule = formatScheduleForGroup(groupName, scheduleData[groupName]);
+  const formattedSchedule = formatScheduleForGroup(groupName, window.scheduleData[groupName]);
   document.getElementById('inputText').value = formattedSchedule;
   closeGroupModal();
 };
@@ -115,9 +120,9 @@ function renderGroupList() {
   const groupList = document.getElementById('groupList');
   groupList.innerHTML = '';
   
-  if (!scheduleData) return;
+  if (!window.scheduleData) return;
   
-  const groups = Object.keys(scheduleData).sort();
+  const groups = Object.keys(window.scheduleData).sort();
   
   groups.forEach(group => {
     const groupItem = document.createElement('div');
@@ -171,7 +176,7 @@ function formatScheduleForGroup(groupName, groupData) {
 
 // Для интеграции с основной логикой генерации
 function getSelectedStyle() {
-  return selectedStyle;
+  return window.selectedStyle;
 }
 
 function drawAllPreviews() {
@@ -279,7 +284,8 @@ async function generateImage() {
   const ctx = canvas.getContext("2d");
   const exportScale = 3; // 3x for high-resolution export
   
-  let style = (typeof getSelectedStyle === 'function') ? getSelectedStyle() : 'style1';
+  let style = (typeof window.getSelectedStyle === 'function') ? window.getSelectedStyle() : 
+              (typeof getSelectedStyle === 'function') ? getSelectedStyle() : 'style1';
   if (style === 'style3') {
     try {
       drawScheduleGlassStyle(ctx, canvas, scheduleData, callScheduleData, exportScale);
